@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Station 07 · Sample artifact</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#242041;color:#fff6e6;font:1rem system-ui}
+main{padding:2rem;max-width:36rem}small{letter-spacing:.2em}h1{font-size:clamp(2rem,8vw,4rem);margin:.35em 0}button{padding:.65rem}
+</style>
+<main><small>FIELD RECORD / 07</small><h1>The lantern log</h1><p>Leave a note about the preview or hand it to the next editor.</p>
+<button id="status" type="button">Mark lamp checked</button></main>
+<script>
+document.querySelector('#status').onclick = event => { event.target.textContent = 'Lamp checked'; };
+</script>
+</html>

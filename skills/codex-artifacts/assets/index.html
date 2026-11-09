@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="artifact-token" content="__APP_TOKEN__">
+  <title>/codex-아티펙트</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<header class="header">
+  <div><div class="eyebrow">LOCAL WORKSPACE <span id="project"></span></div><h1>/codex-아티펙트</h1></div>
+  <label>작업자 <select id="role"><option value="human">사용자</option><option value="codex">Codex</option><option value="claude">Claude</option></select></label>
+</header>
+<nav aria-label="작업 화면">
+  <button id="review-tab" aria-pressed="true">아티펙트</button>
+  <button id="handoff-tab" aria-pressed="false">인계함 <span id="inbox-count"></span></button>
+  <button id="refresh" class="ghost">목록 새로고침</button>
+</nav>
+<p id="status" role="status" class="status">저장소를 불러오는 중…</p>
+<main>
+  <section id="review-page" aria-label="아티펙트">
+    <div class="row spread">
+      <label>아티펙트 <select id="artifacts" aria-label="아티펙트 선택"></select></label>
+      <div class="row"><a id="srt" class="button" hidden>자막 SRT</a><button id="save" class="primary" disabled>편집안 저장</button></div>
+    </div>
+    <p id="empty" class="quiet">등록된 아티펙트가 없습니다. CLI에서 add로 영상, HTML 또는 이미지를 등록하세요.</p>
+    <div id="workspace" class="split" hidden>
+      <div class="stack">
+        <div id="screen"></div>
+        <div id="transport" class="stack" hidden>
+          <label for="scrub" class="quiet">재생 위치</label><input type="range" id="scrub" min="0" step="any" value="0">
+          <div class="row"><button id="play">재생</button><button id="back" aria-label="이전 프레임">−1프레임</button><button id="next" aria-label="다음 프레임">+1프레임</button><output id="time">00:00:00:00</output></div>
+          <form id="jump-form" class="row"><label>시각 <input id="jump" class="short" placeholder="03:21.185"></label><button>이동</button></form>
+          <label id="music-control" class="row">배경음 <output id="music-value"></output><input id="music" type="range" min="0" max="100"></label>
+        </div>
+      </div>
+      <aside class="stack">
+        <div id="subtitle-box" class="stack" hidden>
+          <h2>현재 자막</h2><label id="cue-label" for="caption" class="quiet"></label>
+          <textarea id="caption" maxlength="1000"></textarea>
+          <button id="reset-caption" class="ghost">이 자막 원문으로</button>
+        </div>
+        <div class="stack">
+          <h2 id="note-title">메모</h2><label for="note" class="visually-hidden">메모 내용</label>
+          <textarea id="note" maxlength="2000" placeholder="이 장면이나 파일에서 확인할 점"></textarea>
+          <button id="add-note">메모 추가</button>
+          <ul id="notes" class="notes"></ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+  <section id="handoff-page" aria-label="인계함" hidden>
+    <div class="split">
+      <section class="stack"><h2>인계 기록</h2><div id="handoffs" class="stack"></div></section>
+      <form id="handoff-form" class="stack">
+        <div class="row spread"><h2 id="form-title">새 인계</h2><button type="button" id="clear-reply" class="ghost" hidden>답장 취소</button></div>
+        <p id="reply-context" class="quiet" hidden></p>
+        <label>받는 쪽 <select id="recipient"><option value="codex">Codex</option><option value="claude">Claude</option><option value="human">사용자</option></select></label>
+        <label>제목 <input id="handoff-title" maxlength="140" required></label>
+        <label>완료한 일과 결정 <textarea id="summary" maxlength="10000" required></textarea></label>
+        <label>이어 할 일 <textarea id="next-step" maxlength="10000" required></textarea></label>
+        <label>검증 결과 또는 남은 확인 <textarea id="checks" maxlength="6000"></textarea></label>
+        <label>관련 파일 <textarea id="files" placeholder="저장소 상대 경로를 줄마다 하나씩"></textarea></label>
+        <label>아티펙트 연결 <select id="link-artifact" aria-label="연결할 아티펙트"></select></label>
+        <button class="primary">인계서 기록</button>
+      </form>
+    </div>
+  </section>
+</main>
+</body>
+</html>
