@@ -214,7 +214,13 @@ def render_synced(project, key, output, font, **inputs):
         if effects:
             cmd += ['-i', str(effects)]
             streams.append((f'{3 if music else 2}:a:0', review.get('effects', 100)))
-        cmd += ['-map', '0:v:0', '-filter_script:v', 'video-filter.txt', '-c:v', 'libx264',
+        # Keep long graphs in a file (Windows has a command-line length limit).
+        # FFmpeg 9 removed filter_script; older releases lack the /option syntax.
+        help_text = subprocess.run(['ffmpeg', '-hide_banner', '-h', 'full'],
+                                   check=True, capture_output=True, text=True,
+                                   encoding='utf-8', errors='replace').stdout
+        filter_option = '-filter_script:v' if '-filter_script' in help_text else '-/filter:v'
+        cmd += ['-map', '0:v:0', filter_option, 'video-filter.txt', '-c:v', 'libx264',
                 '-preset', 'veryfast', '-crf', '18']
         cmd += ['-filter_complex', mix_audio(streams), '-map', '[a]']
         cmd += ['-t', f'{duration:.6f}', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', str(temp)]
