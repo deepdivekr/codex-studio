@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -54,9 +55,12 @@ class Workflow(unittest.TestCase):
             self.project.acknowledge(record_id, 'codex')
         self.cli('handoff', 'ack', record_id, '--by', 'claude')
         self.assertEqual(self.cli('handoff', 'list', '--to', 'claude', '--pending'), [])
+        self.assertEqual(self.cli('handoff', 'list', '--to', 'claude', '--open')[0]['id'], record_id)
         reply = self.cli('handoff', 'add', '--from', 'claude', '--to', 'codex', '--title', 'Reviewed',
                          '--summary', 'Preview loaded', '--next', 'Check on mobile', '--reply-to', record_id)
         self.assertEqual(self.cli('handoff', 'list', '--to', 'codex')[0]['reply_to'], record_id)
+        self.assertEqual(self.cli('handoff', 'list', '--to', 'claude', '--open'), [])
+        self.assertEqual(self.cli('handoff', 'list', '--to', 'codex', '--open')[0]['id'], reply['id'])
         self.assertIsNone(reply['acknowledgment'])
 
     def test_two_saves_from_same_revision_cannot_overwrite(self):
@@ -105,6 +109,13 @@ class Workflow(unittest.TestCase):
                 thread.join(timeout=5)
 
     def test_install_both_read_the_same_project_records(self):
+        old_codex = '# 기존 지침\r\n\r\nRun the test suite.\r\n'.encode()
+        old_claude = b'# Existing Claude guidance\n'
+        (self.root / 'AGENTS.md').write_bytes(old_codex)
+        (self.root / 'AGENTS.override.md').write_bytes(b'# Existing override\n')
+        (self.root / 'CLAUDE.md').write_bytes(old_claude)
+        outgoing = self.cli('handoff', 'add', '--from', 'codex', '--to', 'claude', '--title', 'Ready',
+                            '--summary', 'Prepared the preview', '--next', 'Review the title card')
         locations = self.cli('install')
         for location in locations:
             path = Path(location)
@@ -112,6 +123,21 @@ class Workflow(unittest.TestCase):
             records = subprocess.check_output([sys.executable, str(path / 'scripts/artifact.py'),
                                                'list'], cwd=self.root, encoding='utf-8')
             self.assertEqual(json.loads(records)[0]['id'], 'design')
+        for doc, role, prefix in [('AGENTS.md', 'codex', old_codex),
+                                  ('AGENTS.override.md', 'codex', b'# Existing override\n'),
+                                  ('CLAUDE.md', 'claude', old_claude)]:
+            path = self.root / doc
+            before = path.read_bytes()
+            self.assertTrue(before.startswith(prefix))
+            commands = re.findall(r'^\x60python3 (.+ handoff list .+)\x60$',
+                                  path.read_text(encoding='utf-8'), re.M)
+            self.assertEqual(len(commands), 1)
+            inbox = json.loads(subprocess.check_output([sys.executable, *shlex.split(commands[0])],
+                                                       cwd=self.root, encoding='utf-8'))
+            self.assertEqual([row['id'] for row in inbox], [outgoing['id']] if role == 'claude' else [])
+        originals = {path: path.read_bytes() for path in self.root.glob('*.md')}
+        self.cli('install', '--upgrade')
+        self.assertEqual({path: path.read_bytes() for path in originals}, originals)
 
     @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'FFmpeg required for export')
     def test_export_reads_edits_and_rejects_replaced_source(self):

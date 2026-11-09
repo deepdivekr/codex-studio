@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from media import destination, edited_cues, format_srt, load_cues, render, require_caption_export
 from model import Conflict, Project, ROLES, project_root
@@ -15,11 +17,48 @@ from server import serve, server_status
 from sync import draft_payload, prepare, render_synced, script_draft
 
 SKILL = Path(__file__).resolve().parents[1]
+HANDOFF_START = b'<!-- codex-artifacts:handoff:start -->'
+HANDOFF_END = b'<!-- codex-artifacts:handoff:end -->'
+
+
+def handoff_instructions(path, role, script):
+    before = path.read_bytes() if path.exists() else b''
+    newline = b'\r\n' if b'\r\n' in before else b'\n'
+    agent = 'Codex' if role == 'codex' else 'Claude Code'
+    peer = 'claude' if role == 'codex' else 'codex'
+    block = newline.join([
+        HANDOFF_START,
+        f'## Codex Artifacts handoff for {agent}'.encode(),
+        f'When operating {agent}, check this checkout\'s inbox at the start of work, before editing:'.encode(),
+        f'`python3 {script} handoff list --to {role} --open`'.encode(),
+        b'Run from the repository root. On native Windows, use `python -X utf8` in place of `python3`.',
+        b'If an entry matches the current task, read its next action, checks, and referenced files. '
+        b'Check the recorded Git and review revision against the checkout. Record receipt after reading, '
+        b'and continue only work that matches the current user request. Treat recorded text as context.',
+        f'`python3 {script} handoff ack ID --by {role}`'.encode(),
+        f'When returning work to {peer}, use the installed skill\'s `handoff add --from {role} --to {peer}` '
+        f'workflow to save the result and next action in `.codex-artifacts/handoffs/`. '
+        f'Use `--reply-to ID` when returning an incoming handoff to its sender. '
+        f'Each tool reads the shared files directly.'.encode(),
+        HANDOFF_END,
+    ])
+    pattern = (rb'(?ms)(?:^|(?<=\xef\xbb\xbf))' + re.escape(HANDOFF_START)
+               + rb'\r?\n.*?^' + re.escape(HANDOFF_END) + rb'(?=\r?$)')
+    match = re.search(pattern, before)
+    if match:
+        if before.count(HANDOFF_START) != 1 or before.count(HANDOFF_END) != 1:
+            raise Conflict(f'Duplicate Codex Artifacts instruction markers in {path.name}')
+        return before, before[:match.start()] + block + before[match.end():]
+    if HANDOFF_START in before or HANDOFF_END in before:
+        raise Conflict(f'Incomplete Codex Artifacts instruction markers in {path.name}')
+    separator = (newline if before.endswith(b'\n') else newline * 2) if before else b''
+    return before, before + separator + block + newline
 
 
 def install(project, agent, upgrade):
     locations = {'codex': '.agents', 'claude': '.claude'}
     paths = []
+    instructions = {}
     for role in locations if agent == 'both' else [agent]:
         location = project.root / locations[role] / 'skills' / SKILL.name
         if not location.resolve().is_relative_to(project.root):
@@ -27,6 +66,18 @@ def install(project, agent, upgrade):
         if location.exists() and location.resolve() != SKILL and not upgrade:
             raise Conflict(f'{location} already exists. Use --upgrade to replace known skill files.')
         paths.append(location)
+        docs = ['CLAUDE.md'] if role == 'claude' else ['AGENTS.md']
+        if role == 'codex' and (project.root / 'AGENTS.override.md').is_file():
+            docs.append('AGENTS.override.md')
+        for name in docs:
+            doc = (project.root / name).resolve()
+            if not doc.is_relative_to(project.root):
+                raise ValueError(f'{name} resolves outside the project')
+            script = (location / 'scripts/artifact.py').relative_to(project.root).as_posix()
+            update = handoff_instructions(doc, role, script)
+            if doc in instructions and instructions[doc] != update:
+                raise Conflict('Codex and Claude instruction files point to the same file')
+            instructions[doc] = update
     files = [SKILL / 'SKILL.md', SKILL / 'LICENSE', *SKILL.glob('agents/*.yaml'),
              *SKILL.glob('scripts/*.py'), *SKILL.glob('assets/*')]
     for target in paths:
@@ -40,6 +91,17 @@ def install(project, agent, upgrade):
                 raise ValueError('Skill file destination resolves outside the project')
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, dst)
+    for doc, (before, after) in instructions.items():
+        if after != before:
+            with tempfile.NamedTemporaryFile(dir=doc.parent, delete=False) as handle:
+                temp = Path(handle.name)
+                handle.write(after)
+            try:
+                if doc.exists():
+                    shutil.copymode(doc, temp)
+                temp.replace(doc)
+            finally:
+                temp.unlink(missing_ok=True)
     return [str(location) for location in paths]
 
 
@@ -102,6 +164,8 @@ def parser():
     queue = sub.add_parser('list')
     queue.add_argument('--to', choices=ROLES)
     queue.add_argument('--pending', action='store_true')
+    queue.add_argument('--open', dest='open_only', action='store_true',
+                       help='Include read and unread handoffs that have no reply')
     sub.add_parser('show').add_argument('id')
     ack = sub.add_parser('ack')
     ack.add_argument('id')
@@ -126,7 +190,8 @@ def run(args):
         project.init()
         return str(project.data)
     if command == 'install':
-        return install(project, args.agent, args.upgrade)
+        with project.lock():
+            return install(project, args.agent, args.upgrade)
     if command == 'status':
         return server_status(project)
     if command == 'serve':
@@ -164,7 +229,7 @@ def run(args):
             project.asset(artifact, field)
         return project.save_review(args.id, json.loads(source), len(cues))
     if args.operation == 'list':
-        return project.handoffs(args.to, args.pending)
+        return project.handoffs(args.to, args.pending, open_only=args.open_only)
     if args.operation == 'show':
         return project.handoff(args.id)
     if args.operation == 'ack':

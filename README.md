@@ -14,6 +14,8 @@ python3 .agents/skills/codex-artifacts/scripts/artifact.py serve --port 0
 
 Codex에서는 `$codex-artifacts`, Claude Code에서는 `/codex-artifacts`로 호출합니다. 화면 이름은 **/codex-아티펙트**입니다. 스킬은 각각 `.agents/skills/`와 `.claude/skills/`에 설치합니다. [Codex 스킬](https://developers.openai.com/codex/skills) · [Claude Code 스킬](https://code.claude.com/docs/en/skills)
 
+설치하면 프로젝트의 `AGENTS.md`와 `CLAUDE.md`에 각 도구의 인계 확인 절차가 추가됩니다. 기존 프로젝트 지침은 유지됩니다. 이전 버전에서 업데이트하려면 설치 명령에 `--upgrade`를 붙이고 같은 프로젝트 폴더에서 새 세션을 여세요. [Codex 프로젝트 지침](https://developers.openai.com/codex/guides/agents-md) · [Claude Code 프로젝트 지침](https://code.claude.com/docs/en/memory)
+
 출력된 `http://127.0.0.1:<port>/`를 Codex 데스크톱의 인앱 Browser 주소창 또는 일반 브라우저에 엽니다. 같은 PC에서 WSL을 쓰면 Windows 브라우저에서 WSL localhost 연결을 사용합니다. 원격 호스트는 포트 전달이 필요합니다. [Codex Browser 안내](https://learn.chatgpt.com/docs/browser)
 
 ## 아티펙트 검토
@@ -53,13 +55,13 @@ python3 artifact.py sync render episode-01 --clips voice-v2 --out exports/episod
 
 ## Codex와 Claude 인계
 
-편집실의 **인계함**에서 작업자를 선택하고 완료 내용, 다음 작업, 검증 결과, 관련 파일을 기록합니다. 저장된 편집안 버전과 Git 브랜치·커밋을 함께 남깁니다. 받은 쪽은 **수신 확인**, **답장**, **이어받기 문구 복사**를 할 수 있습니다.
+같은 작업 폴더를 다른 도구에서 열면 시작 지침에 따라 그 도구 앞으로 온 인계를 확인합니다. 작업을 넘기는 에이전트는 완료 내용, 다음 작업, 검증 결과, 관련 파일을 기록합니다. 편집안 버전과 Git 브랜치·커밋도 함께 저장합니다. 편집실의 **인계함**에서는 같은 기록과 수신·답장 상태를 볼 수 있습니다.
 
 ```bash
 python3 artifact.py handoff add --from codex --to claude \
   --title "Episode 01 subtitle pass" --summary "Reviewed the title-card transition" \
   --next "Check the note near 03:21 and review the music level" --artifact episode-01
-python3 artifact.py handoff list --to claude --pending
+python3 artifact.py handoff list --to claude --open
 python3 artifact.py handoff show HANDOFF_ID
 python3 artifact.py handoff ack HANDOFF_ID --by claude
 python3 artifact.py handoff add --from claude --to codex --reply-to HANDOFF_ID \
@@ -69,7 +71,7 @@ python3 artifact.py handoff add --from claude --to codex --reply-to HANDOFF_ID \
 
 **같은 체크아웃**에서는 `.codex-artifacts/`의 아티펙트 정의, 편집안, 인계서, 수신 기록을 즉시 공유합니다. 같은 편집안에 동시에 쓰면 뒤늦은 저장을 거부합니다. **다른 체크아웃·워크트리·PC**에서는 필요한 기록과 원본·코드 변경을 Git 등으로 명시적으로 옮깁니다. 같은 영상의 편집안을 별개 워크트리에서 동시에 바꾸면 병합이 필요합니다.
 
-인계서는 상대 도구의 채팅으로 전송되지 않습니다. 같은 저장소에서 인계함을 읽거나 복사한 문구를 새 세션에 붙여 이어받습니다. 작업자 선택은 기록용 라벨입니다. 서비스는 IPv4 루프백에만 열리며 비공개 영상·경로·인계는 공개 저장소에 올리기 전에 검토하세요.
+수신을 확인한 인계도 답장을 남기기 전까지 열린 인계함에 남습니다. 작업자 선택은 기록용 라벨입니다. 서비스는 IPv4 루프백에 열리며 비공개 영상·경로·인계는 공개 저장소에 올리기 전에 검토하세요.
 
 ## Try the HTML example
 

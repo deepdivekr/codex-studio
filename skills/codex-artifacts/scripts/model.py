@@ -326,10 +326,12 @@ class Project:
         ack = self.storage('acks', ident + '.json')
         return dict(item, acknowledgment=read_json(ack) if ack.exists() else None)
 
-    def handoffs(self, recipient=None, pending=False):
+    def handoffs(self, recipient=None, pending=False, *, open_only=False):
         items = [self.handoff(path.stem) for path in self.storage('handoffs').glob('*.json')]
+        replied = {item['reply_to'] for item in items if item.get('reply_to')} if open_only else set()
         return sorted((item for item in items
                        if (recipient is None or item['to'] == recipient)
+                       and item['id'] not in replied
                        and (not pending or not item['acknowledgment'])),
                       key=lambda item: (item['created_at'], item['id']), reverse=True)
 

@@ -258,25 +258,23 @@ function recordFields(item) {
     ['관련 파일',item.files.join('\n')],['Git 기준',[item.branch,item.commit].filter(Boolean).join(' · ')],
     ['연결',item.artifact ? item.artifact + ' · 편집안 v' + item.review_revision : '']];
 }
-function resumePrompt(item) {
-  return ['저장소의 인계 ' + item.id + '를 먼저 확인하고 이어서 작업해줘.',
-    '제목: ' + item.title, ...recordFields(item).filter(([,value])=>value).map(([key,value])=>key + '\n' + value)].join('\n\n');
-}
 function showHandoffs() {
   const current = $('role').value;
   const inbox = board?.handoffs || [];
-  const pending = inbox.filter(item => item.to === current && !item.acknowledgment).length;
+  const replied = new Set(inbox.map(item => item.reply_to).filter(Boolean));
+  const pending = inbox.filter(item => item.to === current && !replied.has(item.id)).length;
   $('inbox-count').textContent = pending ? '(' + pending + ')' : '';
   $('handoffs').replaceChildren();
   if (!inbox.length) $('handoffs').append(node('p','기록된 인계가 없습니다.'));
   for (const item of inbox) {
     const details = node('details');
     details.className = 'record';
-    const opened = item.to === current && !item.acknowledgment;
-    details.open = opened;
+    const answered = replied.has(item.id);
+    details.open = item.to === current && !answered;
     details.append(node('summary',roleNames[item.from] + ' → ' + roleNames[item.to] + ' · ' + item.title));
     const when = new Date(item.created_at).toLocaleString();
-    const hint = node('p',when + ' · ' + (item.acknowledgment ? '수신 확인' : '수신 대기'));
+    const state = answered ? '답장 완료' : item.acknowledgment ? '수신 확인' : '수신 대기';
+    const hint = node('p',when + ' · ' + state);
     hint.className = 'quiet';
     details.append(hint);
     const fields = node('dl');
@@ -284,10 +282,7 @@ function showHandoffs() {
     details.append(fields);
     const actions = node('div');
     actions.className = 'row';
-    const copy = node('button','이어받기 문구 복사');
-    copy.onclick = guard(async () => { await navigator.clipboard.writeText(resumePrompt(item)); status('이어받기 문구를 복사했습니다.'); });
-    actions.append(copy);
-    if (item.to === current) {
+    if (item.to === current && !answered) {
       if (!item.acknowledgment) {
         const ack = node('button','수신 확인');
         ack.onclick = guard(async () => {
