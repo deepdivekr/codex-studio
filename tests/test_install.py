@@ -127,8 +127,10 @@ if ($before -ne $ErrorActionPreference) { throw 'Installer changed the parent sh
                                         cwd=self.project, env=env, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
                 self.assertTrue(receipt.exists(), result.stdout.decode(errors='replace'))
-                self.assertEqual(json.loads(receipt.read_text(encoding='utf-8'))[1:],
-                                 ['--project', str(self.project)])
+                arguments = json.loads(receipt.read_text(encoding='utf-8'))[1:]
+                self.assertEqual(len(arguments), 2)
+                self.assertEqual(arguments[0], '--project')
+                self.assertTrue(Path(arguments[1]).samefile(self.project))
 
 
 if __name__ == '__main__':
