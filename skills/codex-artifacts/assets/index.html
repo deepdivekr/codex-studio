@@ -41,6 +41,14 @@
           <h2>현재 자막</h2><label id="cue-label" for="caption" class="quiet"></label>
           <textarea id="caption" maxlength="1000"></textarea>
           <button id="reset-caption" class="ghost">이 자막 원문으로</button>
+          <label>수정 유형 <select id="edit-mode"><option value="caption">표시 자막만</option><option value="script">나레이션 대본</option></select></label>
+          <details id="script-changes" hidden>
+            <summary>대본 변경사항 <span id="script-count"></span></summary>
+            <ul id="script-diff" class="script-diff"></ul>
+            <p id="script-state" class="quiet"></p>
+            <button id="approve-script" type="button">이 대본으로 승인</button>
+            <button id="copy-sync" type="button" class="ghost" hidden>싱크 작업 요청 복사</button>
+          </details>
         </div>
         <div class="stack">
           <h2 id="note-title">메모</h2><label for="note" class="visually-hidden">메모 내용</label>

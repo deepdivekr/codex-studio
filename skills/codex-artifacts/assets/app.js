@@ -64,6 +64,7 @@ async function openArtifact(id) {
     pauseTracks();
     player = null; bed = null; tracks = []; activeCue = -2;
     ({artifact, cues, review} = result);
+    review.mode ??= "caption";
     dirty = false;
     $('save').disabled = true;
     $('artifacts').value = id;
@@ -76,7 +77,8 @@ async function openArtifact(id) {
     $('transport').hidden = !isVideo;
     $('subtitle-box').hidden = !isVideo || !cues.length;
     $('music-control').hidden = !artifact.music;
-    $('srt').hidden = !cues.length;
+    $('edit-mode').value = review.mode;
+    $('script-changes').open = false;
     $('srt').href = '/export/' + id + '.srt';
     $('note-title').textContent = isVideo ? '프레임 메모' : '아티펙트 메모';
     $('note').value = '';
@@ -95,6 +97,7 @@ async function openArtifact(id) {
       preview.append(iframe);
     }
     showNotes();
+    showScript();
     status(artifact.title + ' · 편집안 v' + review.revision);
   } catch (error) {
     if (artifact) $('artifacts').value = artifact.id;
@@ -210,10 +213,32 @@ function mountVideo(preview, id) {
   drawVideo();
   setMusic();
 }
+function showScript() {
+  const script = review.mode === "script";
+  const edits = cues.map((cue, index) => ({cue, index, after: review.captions[index]}))
+    .filter(change => change.after !== undefined && change.after !== change.cue.text);
+  $("srt").hidden = !cues.length || script;
+  $("script-changes").hidden = !script;
+  if (!script) return;
+  $("script-count").textContent = "(" + edits.length + ")";
+  $("script-diff").replaceChildren(...edits.map(({cue, index, after}) => {
+    const item = node("li");
+    item.append(node("span", (index + 1) + " · " + timecode(Math.ceil(cue.start * fps))),
+      node("span", "기존: " + cue.text), node("span", "수정: " + after));
+    return item;
+  }));
+  $("approve-script").disabled = dirty || saving || !!review.script_approved || !edits.length;
+  $("copy-sync").hidden = !review.script_approved;
+  $("copy-sync").disabled = dirty || saving;
+  $("script-state").textContent = review.script_approved
+    ? "승인된 대본입니다. 새 나레이션을 준비한 뒤 이 대본으로 컷과 자막을 맞출 수 있습니다."
+    : "지금 재생되는 음성은 기존 나레이션입니다. 변경을 저장한 다음 대본을 검토하고 승인하세요.";
+}
 function changed() {
   dirty = true;
   $('save').disabled = saving;
   status('저장하지 않은 편집이 있습니다.');
+  showScript();
 }
 function showNotes() {
   $('notes').replaceChildren();
@@ -328,12 +353,50 @@ $('jump-form').onsubmit = event => {
   seek(Math.floor(time*fps));
 };
 $('music').oninput = event => { review.music = Number(event.target.value); setMusic(); changed(); };
+$('edit-mode').onchange = event => {
+  review.mode = event.target.value;
+  delete review.script_approved;
+  changed();
+};
+$('copy-sync').onclick = guard(async () => {
+  const prompt = '이 저장소의 $codex-artifacts에서 승인된 대본 ' + artifact.id
+    + ' (편집안 v' + review.revision + ')을 읽어줘. 기존 음성 제작·정렬 방식을 확인하고 새 나레이션에 컷과 자막을 맞춰 별도 MP4로 만들어줘.';
+  await navigator.clipboard.writeText(prompt);
+  status('싱크 작업 요청을 복사했습니다.');
+});
+$('approve-script').onclick = guard(async () => {
+  if (dirty || saving) return;
+  saving = true;
+  player?.pause();
+  showScript();
+  try {
+    const stored = await request(route(artifact.id) + '/approve-script', {revision:review.revision});
+    review.revision = stored.revision;
+    if (!dirty) review.script_approved = stored.script_approved;
+    status('대본 승인 완료 · 새 나레이션에 맞춰 싱크를 조정할 수 있습니다.');
+  } finally {
+    saving = false;
+    $('save').disabled = !dirty;
+    showScript();
+  }
+});
 $('caption').onfocus = () => player?.pause();
 $('caption').oninput = () => {
-  if (activeCue >= 0) { review.captions[activeCue] = $('caption').value; drawVideo(); changed(); }
+  if (activeCue >= 0) {
+    review.captions[activeCue] = $('caption').value;
+    delete review.script_approved;
+    drawVideo();
+    changed();
+  }
 };
 $('reset-caption').onclick = () => {
-  if (activeCue >= 0) { delete review.captions[activeCue]; $('caption').value=subtitleText(activeCue); drawVideo(); changed(); }
+  if (activeCue >= 0) {
+    delete review.captions[activeCue];
+    delete review.script_approved;
+    $('caption').value = subtitleText(activeCue);
+    drawVideo();
+    changed();
+  }
 };
 $('note').onfocus = () => player?.pause();
 $('add-note').onclick = () => {
@@ -356,8 +419,9 @@ $('save').onclick = guard(async () => {
     const stored = await request(route(artifact.id),JSON.parse(snapshot));
     dirty = snapshot !== JSON.stringify(review);
     review.revision = stored.revision;
+    if (!dirty) review.script_approved = stored.script_approved;
     status(dirty ? '새 변경을 다시 저장하세요.' : '편집안 v' + stored.revision + ' 저장됨');
-  } finally { saving = false; $('save').disabled = !dirty; }
+  } finally { saving = false; $('save').disabled = !dirty; showScript(); }
 });
 $('handoff-form').onsubmit = guard(async event => {
   event.preventDefault();

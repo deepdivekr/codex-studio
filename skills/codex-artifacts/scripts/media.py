@@ -24,7 +24,10 @@ def seconds(value):
 def load_cues(project, artifact):
     if 'captions' not in artifact:
         return []
-    path = project.asset(artifact, 'captions')
+    return read_cues(project.asset(artifact, 'captions'), display=True)
+
+
+def read_cues(path, *, display=False):
     if path.suffix.lower() == '.json':
         data = read_json(path)
         cues = data.get('captions') if isinstance(data, dict) else data
@@ -49,7 +52,7 @@ def load_cues(project, artifact):
             raise ValueError('Caption text must be a string')
         if cue['text'].strip():
             if 'say_end' in cue:
-                end = min(end, float(cue['say_end']) + 0.12)
+                end = min(end, float(cue['say_end']) + (0.12 if display else 0))
             if end > start:
                 result.append({'start': start, 'end': end, 'text': cue['text']})
     result.sort(key=lambda cue: cue['start'])
@@ -94,6 +97,11 @@ def destination(project, name):
     return path
 
 
+def require_caption_export(review):
+    if review.get('mode') == 'script' and review['captions']:
+        raise Conflict('This draft changes narration. Approve the script, then run sync with new audio.')
+
+
 def render(project, key, output, font):
     art = project.artifact(key)
     if art['kind'] != 'video':
@@ -104,6 +112,7 @@ def render(project, key, output, font):
         raise ValueError('Invalid subtitle font family')
     out = destination(project, output)
     review = project.review(key)
+    require_caption_export(review)
     video = project.asset(art, 'file')
     music = project.asset(art, 'music') if 'music' in art else None
     voice = project.asset(art, 'voice') if 'voice' in art else None

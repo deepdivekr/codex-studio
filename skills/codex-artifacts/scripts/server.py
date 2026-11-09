@@ -8,7 +8,7 @@ import re
 import secrets
 from urllib.parse import quote, unquote, urlsplit
 
-from media import edited_cues, format_srt, load_cues
+from media import edited_cues, format_srt, load_cues, require_caption_export
 from model import Conflict, read_json, write_json
 
 UI = Path(__file__).resolve().parent.parent / 'assets'
@@ -145,7 +145,9 @@ class Handler(BaseHTTPRequestHandler):
         if match:
             key = match[1]
             cues = load_cues(self.project, self.project.artifact(key))
-            text = format_srt(edited_cues(cues, self.project.review(key))).encode('utf-8')
+            review = self.project.review(key)
+            require_caption_export(review)
+            text = format_srt(edited_cues(cues, review)).encode('utf-8')
             self.write_headers(200, 'application/x-subrip; charset=utf-8', len(text), [
                 ('Content-Disposition', f'attachment; filename="{key}.srt"')])
             if self.command != 'HEAD':
@@ -172,6 +174,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.project.asset(artifact, field)
             cues = load_cues(self.project, artifact)
             return self.payload(self.project.save_review(match[1], body, len(cues)))
+        match = re.fullmatch(rf'/api/artifacts/{ROUTE_ID}/approve-script', path)
+        if match:
+            artifact = self.project.artifact(match[1])
+            original = load_cues(self.project, artifact)
+            return self.payload(self.project.approve_script(match[1], body.get('revision'),
+                                                            [cue['text'] for cue in original]))
         if path == '/api/handoffs':
             return self.payload(self.project.create_handoff(body), 201)
         match = re.fullmatch(rf'/api/handoffs/{HANDOFF_ID}/ack', path)

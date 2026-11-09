@@ -9,9 +9,10 @@ import shutil
 import subprocess
 import sys
 
-from media import destination, edited_cues, format_srt, load_cues, render
+from media import destination, edited_cues, format_srt, load_cues, render, require_caption_export
 from model import Conflict, Project, ROLES, project_root
 from server import serve, server_status
+from sync import draft_payload, prepare, render_synced, script_draft
 
 SKILL = Path(__file__).resolve().parents[1]
 
@@ -79,6 +80,23 @@ def parser():
     encode.add_argument('id')
     encode.add_argument('--out', required=True)
     encode.add_argument('--font', default='sans-serif')
+    script = commands.add_parser('script', help='Review and approve a narration draft')
+    draft_ops = script.add_subparsers(dest='operation', required=True)
+    draft_ops.add_parser('show').add_argument('id')
+    approve = draft_ops.add_parser('approve')
+    approve.add_argument('id')
+    approve.add_argument('--revision', type=int, required=True)
+    sync = commands.add_parser('sync', help='Match captions and picture to new narration')
+    sync_ops = sync.add_subparsers(dest='operation', required=True)
+    for action in ('plan', 'render'):
+        operation = sync_ops.add_parser(action)
+        operation.add_argument('id')
+        operation.add_argument('--voice')
+        operation.add_argument('--timings')
+        operation.add_argument('--clips', help='Folder with 0001.wav, 0002.wav, ...')
+        if action == 'render':
+            operation.add_argument('--out', required=True)
+            operation.add_argument('--font', default='sans-serif')
     transfer = commands.add_parser('handoff')
     sub = transfer.add_subparsers(dest='operation', required=True)
     queue = sub.add_parser('list')
@@ -119,15 +137,27 @@ def run(args):
         return project.artifacts()
     if command == 'render':
         return str(render(project, args.id, args.out, args.font))
+    if command == 'script':
+        if args.operation == 'show':
+            return draft_payload(project, args.id)
+        _, _, original, _ = script_draft(project, args.id)
+        return project.approve_script(args.id, args.revision, [cue['text'] for cue in original])
+    if command == 'sync':
+        inputs = dict(voice=args.voice, timings=args.timings, clips=args.clips)
+        if args.operation == 'plan':
+            return prepare(project, args.id, **inputs)[0]
+        return render_synced(project, args.id, args.out, args.font, **inputs)
     if command in ('export-srt', 'review'):
         artifact = project.artifact(args.id)
         if command == 'review' and args.operation == 'show':
             return project.review(args.id)
         cues = load_cues(project, artifact)
         if command == 'export-srt':
+            review = project.review(args.id)
+            require_caption_export(review)
             out = destination(project, args.out)
             with out.open('x', encoding='utf-8', newline='\n') as handle:
-                handle.write(format_srt(edited_cues(cues, project.review(args.id))))
+                handle.write(format_srt(edited_cues(cues, review)))
             return str(out)
         source = sys.stdin.read() if args.input == '-' else Path(args.input).read_text(encoding='utf-8-sig')
         for field in artifact.get('fingerprints', {}):

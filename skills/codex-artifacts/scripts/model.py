@@ -254,13 +254,16 @@ class Project:
                 raise ValueError('Unsupported review version')
             return record
         return {'version': VERSION, 'revision': 0, 'music': artifact.get('music_level', 100),
-                'notes': [], 'captions': {}}
+                'notes': [], 'captions': {}, 'mode': 'caption'}
 
     def save_review(self, key, change, cue_count):
         artifact = self.artifact(key)
         if not isinstance(change, dict):
             raise ValueError('Review must be an object')
         rev, music = change.get('revision'), change.get('music')
+        mode = change.get('mode', 'caption')
+        if mode not in ('caption', 'script') or (mode == 'script' and artifact['kind'] != 'video'):
+            raise ValueError('Narration edits are only available for video')
         notes, captions = change.get('notes'), change.get('captions')
         if type(rev) is not int or type(music) is not int or not 0 <= music <= 100:
             raise ValueError('Invalid review revision or volume')
@@ -287,12 +290,32 @@ class Project:
                     or not isinstance(value, str) or len(value) > 1000):
                 raise ValueError('Invalid caption edit')
         with self.lock():
-            if self.review(key)['revision'] != rev:
+            previous = self.review(key)
+            if previous['revision'] != rev:
                 raise Conflict('Another session saved changes. Copy your draft before reloading.')
             record = {'version': VERSION, 'revision': rev + 1, 'updated_at': now(), 'music': music,
-                      'notes': cleaned, 'captions': captions}
+                      'notes': cleaned, 'captions': captions, 'mode': mode}
+            if mode == 'script' and previous.get('mode') == mode and previous['captions'] == captions:
+                if previous.get('script_approved'):
+                    record['script_approved'] = previous['script_approved']
             write_json(self.storage('reviews', key + '.json'), record)
         return record
+
+    def approve_script(self, key, revision, originals):
+        with self.lock():
+            review = self.review(key)
+            if type(revision) is not int or review["revision"] != revision:
+                raise Conflict("The draft changed. Reopen it before approving the script.")
+            if review.get("mode") != "script" or not any(
+                text != originals[int(idx)] for idx, text in review["captions"].items()
+            ):
+                raise ValueError("Save at least one narration edit before approval")
+            if any(not text.strip() for text in review["captions"].values()):
+                raise ValueError("Deleting an entire spoken cue requires an explicit timeline edit")
+            if not review.get("script_approved"):
+                review.update(revision=revision + 1, updated_at=now(), script_approved=now())
+                write_json(self.storage("reviews", key + ".json"), review)
+        return review
 
     def handoff(self, ident):
         if not isinstance(ident, str) or not HANDOFF_KEY.fullmatch(ident):

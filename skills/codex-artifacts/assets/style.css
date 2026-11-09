@@ -46,3 +46,8 @@ form.stack label:not(.row){display:grid;gap:4px}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(max-width:780px){.split{grid-template-columns:1fr;gap:18px}}
 @media(pointer:coarse){button,.button,select{min-height:44px}textarea,input:not([type="range"]){font-size:16px}}
+.script-diff{padding-inline-start:1.3rem;margin:8px 0}
+.script-diff li{padding:6px 0;border-bottom:1px solid var(--edge)}
+.script-diff span{display:block;overflow-wrap:anywhere;white-space:pre-wrap}
+#script-changes summary{cursor:pointer}
+#script-state{margin:8px 0}

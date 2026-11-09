@@ -34,6 +34,23 @@ python3 artifact.py render episode-01 --out exports/episode-01-review.mp4
 - **HTML**은 등록 문서와 `--asset`으로 허용한 파일만 샌드박스에서 엽니다. 외부 네트워크와 폼 제출을 막습니다. API 또는 모듈 로더에 의존하는 앱은 프로젝트 개발 서버를 사용하세요. **이미지**에는 메모를 남길 수 있습니다.
 - 영상·자막 원본을 수정했다면 새 ID로 등록합니다. 이전 프레임 메모와 자막 편집이 다른 영상에 적용되지 않도록 원본 해시를 검사합니다.
 
+## 대본 수정과 싱크
+
+발음과 일치하는 오탈자나 표기 수정은 **표시 자막만**으로 저장해 기존 시각을 사용합니다. 실제로 읽을 문장이 달라지면 **나레이션 대본 → 편집안 저장 → 대본 변경사항 → 이 대본으로 승인**을 사용하세요. 승인 후 문장을 바꾸면 다시 검토합니다. 기존 음성을 그대로 사용한 일반 내보내기는 대본 수정 상태에서 차단됩니다.
+
+승인한 문장은 `script show ID`로 가져옵니다. 프로젝트의 기존 TTS나 녹음 방식으로 새 음성을 만들고, 그 음성의 실제 구간을 전달하세요. 기존 나레이션과 새 나레이션에서 문장 순서와 개수는 같아야 합니다.
+
+```bash
+# 새 나레이션 전체 파일과 새 음성에 정렬한 자막
+python3 artifact.py sync plan episode-01 --voice narration-v2.wav --timings narration-v2.srt
+python3 artifact.py sync render episode-01 --voice narration-v2.wav --timings narration-v2.srt --out exports/episode-01-synced.mp4
+
+# 문장별 PCM WAV가 있으면 파일 길이로 시각을 계산합니다
+python3 artifact.py sync render episode-01 --clips voice-v2 --out exports/episode-01-synced.mp4
+```
+
+`--clips`는 승인 대본 순서대로 `0001.wav`, `0002.wav` 등을 읽고, 기존 문장 사이 쉼을 보존합니다. `sync plan`은 전후 길이와 컷 기준점을 보여줍니다. 기존 그림을 구간별로 늘리거나 줄이는 방식이라 장면 내부의 동작은 빨라지거나 느려질 수 있습니다. 소제목 정보가 담긴 JSON에서 새 음성이 소제목 구간과 겹치면 렌더를 멈춥니다. 새 컷 추가, 문장 재배치 및 음성 생성은 각 프로젝트의 제작 도구에서 처리합니다.
+
 ## Codex와 Claude 인계
 
 편집실의 **인계함**에서 작업자를 선택하고 완료 내용, 다음 작업, 검증 결과, 관련 파일을 기록합니다. 저장된 편집안 버전과 Git 브랜치·커밋을 함께 남깁니다. 받은 쪽은 **수신 확인**, **답장**, **이어받기 문구 복사**를 할 수 있습니다.
