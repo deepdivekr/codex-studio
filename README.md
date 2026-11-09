@@ -4,7 +4,7 @@ AI가 만든 **영상·이미지·HTML에 수정 요청을 남기는 로컬 편�
 
 ## 한 줄 설치
 
-**편집할 프로젝트 폴더**의 터미널에서 실행하세요. Python 3.10 이상이 필요합니다.
+**편집할 영상·이미지·HTML이 있는 저장소의 최상위 폴더**에서 실행하세요. Python 3.10 이상이 필요합니다.
 
 **macOS · Linux · WSL**
 
@@ -21,7 +21,7 @@ irm https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/in
 
 </details>
 
-Codex·Claude 양쪽에 설치됩니다. **업데이트도 같은 명령**입니다. 설치 후 해당 프로젝트에서 새 대화를 시작하세요.
+해당 저장소에 Codex·Claude 스킬을 설치하고, **저장소의 `AGENTS.md`·`CLAUDE.md`**에 작업 이어받기 안내를 추가합니다. 사용자 폴더의 `.codex/AGENTS.md`는 수정하지 않습니다. **업데이트도 같은 명령**입니다. 설치 후 해당 프로젝트에서 새 대화를 시작하세요.
 
 ## 이렇게 쓰세요
 
