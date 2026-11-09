@@ -7,7 +7,7 @@
     if ($studioProject -match '^\\\\(?:wsl\.localhost|wsl\$)\\([^\\]+)(\\.*)?$') {
         $studioDistribution = $Matches[1]
         $studioLinuxProject = if ($Matches[2]) { $Matches[2].Replace('\', '/') } else { '/' }
-        & wsl.exe --distribution $studioDistribution --cd $studioLinuxProject -- bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/deepdivekr/codex-studio/main/install.sh | bash'
+        & wsl.exe --distribution $studioDistribution --cd $studioLinuxProject -- bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/install.sh | bash'
         if ($LASTEXITCODE -ne 0) { throw 'Codex Studio installation in WSL failed.' }
         return
     }
@@ -32,7 +32,7 @@
     $studioBootstrap = Join-Path $studioTemp 'install.py'
     try {
         New-Item -ItemType Directory -Path $studioTemp | Out-Null
-        Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/deepdivekr/codex-studio/main/install.py' -OutFile $studioBootstrap
+        Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/install.py' -OutFile $studioBootstrap
         & $studioPython @studioPythonArgs -X utf8 $studioBootstrap --project $studioProject
         if ($LASTEXITCODE -ne 0) { throw 'Codex Studio installation failed.' }
     }

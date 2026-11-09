@@ -16,5 +16,5 @@ fi
 
 studio_temp="$(mktemp -d)"
 trap 'rm -f -- "$studio_temp/install.py"; rmdir -- "$studio_temp"' EXIT
-curl -fsSL https://raw.githubusercontent.com/deepdivekr/codex-studio/main/install.py -o "$studio_temp/install.py"
+curl -fsSL https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/install.py -o "$studio_temp/install.py"
 "$studio_python" -X utf8 "$studio_temp/install.py" "$@"

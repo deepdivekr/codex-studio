@@ -9,14 +9,14 @@ AI가 만든 **영상·이미지·HTML에 수정 요청을 남기는 로컬 편�
 **macOS · Linux · WSL**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/deepdivekr/codex-studio/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/install.sh | bash
 ```
 
 <details>
 <summary>Windows PowerShell</summary>
 
 ```powershell
-irm https://raw.githubusercontent.com/deepdivekr/codex-studio/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/install.ps1 | iex
 ```
 
 </details>
@@ -27,7 +27,7 @@ Codex·Claude 양쪽에 설치됩니다. **업데이트도 같은 명령**입니
 
 1. **“이 사진 편집하게 스튜디오 열어줘.”** — 영상과 HTML도 가능합니다.
 2. 열린 화면에서 바꿀 부분을 지정하고 댓글을 남긴 뒤 **편집안 저장**을 누릅니다.
-3. 대화에 **“저장한 수정 요청 반영해줘.”**라고 말합니다.
+3. 대화에 “저장한 수정 요청 반영해줘”라고 말합니다.
 
 수정 요청 탭에서 반영 결과를 확인하세요. 저장만으로 AI 작업이 시작되지는 않습니다.
 
