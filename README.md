@@ -28,17 +28,57 @@ Codex에서는 `$codex-artifacts`, Claude Code에서는 `/codex-artifacts`로 �
 
 ```bash
 python3 artifact.py add video episode-01 cut.mp4 --title "Episode 01" \
-  --fps 30 --captions subtitles.srt --voice narration.wav --music bed.mp3 --music-level 55
+  --fps 30 --captions subtitles.srt --voice narration.wav --music bed.mp3 --effects effects.wav --music-level 55
 python3 artifact.py add html design ui/index.html --title "Design" --asset ui/style.css
 python3 artifact.py add image poster art/poster.png --title "Poster"
 python3 artifact.py render episode-01 --out exports/episode-01-review.mp4
 ```
 
-- **영상**은 프레임 이동, 메모, 자막 수정, 배경음 조절을 지원합니다. `--fps` 생략 시 ffprobe로 읽습니다. 정밀한 프레임 위치는 일정한 프레임레이트(CFR) 영상이 필요합니다.
+- **영상**은 프레임 이동, 수정 요청, 자막 수정과 나레이션·배경음악·효과음 볼륨 조절을 지원합니다. `--fps` 생략 시 ffprobe로 읽습니다. 정밀한 프레임 위치는 일정한 프레임레이트(CFR) 영상이 필요합니다.
 - **자막**은 SRT, WebVTT 또는 `[{"start":0,"end":2,"text":"첫 줄"}]` 형태의 JSON을 읽습니다. 별도 `--voice`가 있으면 영상에 이미 섞인 소리 대신 그 트랙을 사용합니다. 기존 자막이 구워진 영상은 `--mask 19`처럼 아래쪽을 가릴 비율을 지정하세요.
 - **내보내기**는 화면에서 SRT, CLI에서 SRT 또는 새 MP4를 지원합니다. MP4 자막은 FFmpeg/libass로 합성하며 `--font "Noto Sans CJK KR"`처럼 설치된 글꼴을 지정할 수 있습니다. 미리보기와 내보내기는 줄바꿈·글꼴이 다를 수 있습니다.
 - **HTML**은 등록 문서와 `--asset`으로 허용한 파일만 샌드박스에서 엽니다. 외부 네트워크와 폼 제출을 막습니다. API 또는 모듈 로더에 의존하는 앱은 프로젝트 개발 서버를 사용하세요. **이미지**에는 메모를 남길 수 있습니다.
 - 영상·자막 원본을 수정했다면 새 ID로 등록합니다. 이전 프레임 메모와 자막 편집이 다른 영상에 적용되지 않도록 원본 해시를 검사합니다.
+
+## 사용자의 수정 요청
+
+편집하는 사람은 사용자입니다. 작업자나 에이전트를 선택하지 않습니다. **댓글 추가 → 편집안 저장 → 수정 요청 탭**에서 프레임 썸네일, 댓글, 대기·작업 중·완료·확인 필요 상태와 처리 결과를 모아 봅니다. 썸네일은 원본 영상의 해당 프레임이며 클릭하면 그 위치로 이동합니다. 작업물·상태 필터와 완료 후 **다시 확인 요청**을 지원합니다.
+
+같은 대화에서 “저장한 수정 요청 반영해줘”라고 하면 현재 클라이언트가 처리합니다. 저장 자체가 쉬고 있는 AI를 자동 실행하지는 않습니다. 에이전트는 아래 명령으로 요청을 읽고, 실제 반영과 검증 후 완료 내용을 기록합니다. 화면은 5초마다 표시 중인 목록과 상태를 갱신하며, 저장하지 않은 편집 내용을 덮어쓰지 않습니다.
+
+```bash
+python3 artifact.py requests list --open
+python3 artifact.py requests update episode-01 NOTE_ID --revision 0 --request-version HASH \
+  --by codex --status done --summary "요청한 제목 크기 반영" \
+  --checks "해당 프레임과 모바일 화면 확인" --file exports/revised.mp4 --result-artifact episode-01-v2
+```
+
+`revision`과 `request_version`은 조회 결과의 값을 사용하고, Claude에서 작업하면 `--by claude`로 기록합니다. 처리 기록은 `.codex-artifacts/requests/`에 편집안과 별도로 저장됩니다. 댓글이나 프레임이 바뀌면 이전 완료 상태는 대기로 돌아가고 이력은 유지됩니다.
+
+## 영상 버전 보관
+
+영상 편집안을 저장할 때마다 **rev1, rev2, rev3…**으로 당시의 댓글·자막·볼륨을 보관합니다. **버전** 탭에서 rev를 선택하면 저장한 요청과 처리 결과를 볼 수 있습니다. 수정 영상이 아직 없는 rev는 **반영 대기**로 표시됩니다. 에이전트가 검증한 MP4를 연결하면 **반영 완료**가 되고 영상 재생과 해당 rev의 MP4 다운로드가 가능합니다.
+
+```bash
+python3 artifact.py versions list episode-01
+python3 artifact.py versions show episode-01 1
+python3 artifact.py render episode-01 --rev 1 --out exports/rev1.mp4
+# 실제 수정 결과를 검증하고 요청 완료 기록을 남긴 다음 로컬 버전을 확정합니다.
+python3 artifact.py versions publish episode-01 1 --video exports/rev1.mp4 --by codex \
+  --summary "제목 크기와 효과음 볼륨 수정" --checks "요청 프레임과 오디오 확인"
+```
+
+`versions publish`는 외부 게시가 아닌 **로컬 보관** 명령입니다. `.codex-artifacts/versions/`에 MP4 사본과 완료 시점의 메모를 저장하며, 완료된 rev는 덮어쓰지 않습니다. 사용자가 새 편집안을 저장하지 않고 추가 수정본을 만들 때는 에이전트가 `versions create ID`로 다음 rev를 만듭니다. 이전 rev를 다운로드해도 현재 편집안은 바뀌지 않습니다. 버전 영상은 로컬 디스크 공간을 사용하므로 이 폴더를 작업 자료와 함께 백업하세요.
+
+## 세 가지 오디오 레이어
+
+나레이션·배경음악·효과음 원본을 영상 시작 시각에 맞춰 연결합니다. 효과음 앞의 무음도 포함해야 합니다. 각 볼륨과 음소거는 재생 중 즉시 반영되고, 저장한 값은 MP4 내보내기에 적용됩니다. 기존 영상에 새 레이어를 연결하려면 다음을 사용합니다.
+
+```bash
+python3 artifact.py audio episode-01 --voice narration.wav --music music.wav --effects effects.wav
+```
+
+기존 연결과 편집안은 `.codex-artifacts/audio-history/`에 보관하며, 프레임 댓글은 유지됩니다. 분리되지 않은 영상 소리는 **원본 소리**, 연결하지 않은 레이어는 **미연결**로 표시합니다. 완성된 음원에서 AI로 소리를 분리하는 기능은 포함하지 않습니다. 원본이나 제작 코드에서 분리된 트랙을 준비하세요. 나레이션 길이를 바꾸면 효과음도 새 컷에 맞춰 만들고 `sync render ... --effects new-effects.wav`로 전달해야 합니다.
 
 ## 대본 수정과 싱크
 
@@ -59,7 +99,7 @@ python3 artifact.py sync render episode-01 --clips voice-v2 --out exports/episod
 
 ## Codex와 Claude 인계
 
-같은 작업 폴더를 다른 도구에서 열면 시작 지침에 따라 그 도구 앞으로 온 인계를 확인합니다. 작업을 넘기는 에이전트는 완료 내용, 다음 작업, 검증 결과, 관련 파일을 기록합니다. 편집안 버전과 Git 브랜치·커밋도 함께 저장합니다. 편집실의 **인계함**에서는 같은 기록과 수신·답장 상태를 볼 수 있습니다.
+같은 작업 폴더를 다른 도구에서 열면 시작 지침에 따라 이전 작업 기록과 사용자의 미완료 요청을 확인합니다. 인계는 클라이언트를 바꿨을 때 이어 작업할 수 있도록 에이전트가 남기는 기록이며, 사용자 화면에는 인계함이 없습니다. 편집안 버전과 Git 브랜치·커밋도 함께 저장합니다.
 
 ```bash
 python3 artifact.py handoff add --from codex --to claude \
@@ -75,7 +115,7 @@ python3 artifact.py handoff add --from claude --to codex --reply-to HANDOFF_ID \
 
 **같은 체크아웃**에서는 `.codex-artifacts/`의 아티펙트 정의, 편집안, 인계서, 수신 기록을 즉시 공유합니다. 같은 편집안에 동시에 쓰면 뒤늦은 저장을 거부합니다. **다른 체크아웃·워크트리·PC**에서는 필요한 기록과 원본·코드 변경을 Git 등으로 명시적으로 옮깁니다. 같은 영상의 편집안을 별개 워크트리에서 동시에 바꾸면 병합이 필요합니다.
 
-수신을 확인한 인계도 답장을 남기기 전까지 열린 인계함에 남습니다. 작업자 선택은 기록용 라벨입니다. 서비스는 IPv4 루프백에 열리며 비공개 영상·경로·인계는 공개 저장소에 올리기 전에 검토하세요.
+수신을 확인한 인계도 답장을 남기기 전까지 CLI의 열린 인계 목록에 남습니다. 서비스는 IPv4 루프백에 열립니다. 공개 배포에는 도구 소스와 예제만 포함하며 사용자의 프로젝트, 영상, 댓글, 처리 기록은 각 작업 폴더에 유지됩니다. 화면의 프로젝트 이름도 현재 연 폴더에서 가져옵니다.
 
 ## Try the HTML example
 

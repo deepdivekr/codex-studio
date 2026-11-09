@@ -135,7 +135,7 @@ def title_checks(project, artifact, points, aligned):
     return count
 
 
-def prepare(project, key, *, voice=None, timings=None, clips=None):
+def prepare(project, key, *, voice=None, timings=None, clips=None, effects=None):
     artifact, review, original, edited = script_draft(project, key)
     if review.get('mode') != 'script' or not review.get('script_approved'):
         raise Conflict('Review and approve the saved narration draft first')
@@ -145,6 +145,7 @@ def prepare(project, key, *, voice=None, timings=None, clips=None):
     if original[-1]['end'] > old_duration + 1 / fps:
         raise ValueError('Original subtitles extend beyond the picture')
     music = project.asset(artifact, 'music') if artifact.get('music') else None
+    new_effects = project.local(effects) if effects else None
     bundle = None
     if clips and not (voice or timings):
         aligned, duration, bundle = clips_timing(project, clips, original, edited, old_duration)
@@ -166,11 +167,12 @@ def prepare(project, key, *, voice=None, timings=None, clips=None):
     cards = title_checks(project, artifact, points, aligned)
     rates = [(b[1] - a[1]) / (b[0] - a[0]) for a, b in zip(points, points[1:])]
     stats = {'artifact': key, 'revision': review['revision'], 'original_seconds': round(old_duration, 3),
+             'effects_need_alignment': bool(artifact.get('effects') and not new_effects),
              'new_seconds': round(duration, 3), 'preserved_title_cards': cards,
              'min_picture_duration_ratio': round(min(rates), 3), 'max_picture_duration_ratio': round(max(rates), 3),
              'cue_starts': [{'id': i, 'before': old['start'], 'after': new['start']}
                             for i, (old, new) in enumerate(zip(original, aligned), 1)]}
-    return stats, (artifact, review, picture, source, music, bundle, aligned, points, duration)
+    return stats, (artifact, review, picture, source, music, bundle, aligned, points, duration, new_effects)
 
 
 def pts_expression(points):
@@ -184,7 +186,10 @@ def pts_expression(points):
 
 
 def render_synced(project, key, output, font, **inputs):
-    stats, (art, review, picture, source, music, bundle, aligned, points, duration) = prepare(project, key, **inputs)
+    from media import mix_audio
+    stats, (art, review, picture, source, music, bundle, aligned, points, duration, effects) = prepare(project, key, **inputs)
+    if stats['effects_need_alignment']:
+        raise ValueError('Recreate sound effects on the new timeline and pass --effects NEW_AUDIO')
     if not output.lower().endswith('.mp4') or not re.fullmatch(r'[\w -]{1,80}', font):
         raise ValueError('Choose an MP4 output and a valid font family')
     out = destination(project, output)
@@ -202,16 +207,16 @@ def render_synced(project, key, output, font, **inputs):
         (scratch / 'video-filter.txt').write_text(','.join(filters), encoding='utf-8')
         temp = scratch / 'synced.mp4'
         cmd = ['ffmpeg', '-v', 'error', '-nostdin', '-i', str(picture), '-i', str(source)]
+        streams = [('1:a:0', review.get('voice', 100))]
         if music:
             cmd += ['-stream_loop', '-1', '-i', str(music)]
+            streams.append(('2:a:0', review['music']))
+        if effects:
+            cmd += ['-i', str(effects)]
+            streams.append((f'{3 if music else 2}:a:0', review.get('effects', 100)))
         cmd += ['-map', '0:v:0', '-filter_script:v', 'video-filter.txt', '-c:v', 'libx264',
                 '-preset', 'veryfast', '-crf', '18']
-        if music:
-            cmd += ['-filter_complex', f'[2:a:0]volume={review["music"]/100:.2f}[bed];'
-                    '[1:a:0][bed]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:latency=1[a]',
-                    '-map', '[a]']
-        else:
-            cmd += ['-map', '1:a:0']
+        cmd += ['-filter_complex', mix_audio(streams), '-map', '[a]']
         cmd += ['-t', f'{duration:.6f}', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', str(temp)]
         subprocess.run(cmd, check=True, cwd=scratch)
         for stream, tolerance in [('v:0', 2 / float(Fraction(art['fps']))), ('a:0', .08)]:

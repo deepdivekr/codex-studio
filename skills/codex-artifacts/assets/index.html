@@ -6,17 +6,19 @@
   <meta name="artifact-token" content="__APP_TOKEN__">
   <title>/codex-아티펙트</title>
   <link rel="stylesheet" href="./style.css">
+  <script src="./requests.js" defer></script>
+  <script src="./versions.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
 <header class="header">
   <div><div class="eyebrow">LOCAL WORKSPACE <span id="project"></span></div><h1>/codex-아티펙트</h1></div>
-  <label>작업자 <select id="role"><option value="human">사용자</option><option value="codex">Codex</option><option value="claude">Claude</option></select></label>
+  <span class="quiet">작업물을 확인하고 수정할 내용을 남겨주세요</span>
 </header>
 <nav aria-label="작업 화면">
   <button id="review-tab" aria-pressed="true">아티펙트</button>
-  <button id="handoff-tab" aria-pressed="false">인계함 <span id="inbox-count"></span></button>
-  <button id="refresh" class="ghost">목록 새로고침</button>
+  <button id="requests-tab" aria-pressed="false">수정 요청 <span id="request-count"></span></button>
+  <button id="versions-tab" aria-pressed="false">버전</button>
 </nav>
 <p id="status" role="status" class="status">편집실에 연결하는 중…</p>
 <section id="connection-help" class="stack" hidden>
@@ -39,7 +41,14 @@
           <label for="scrub" class="quiet">재생 위치</label><input type="range" id="scrub" min="0" step="any" value="0">
           <div class="row"><button id="play">재생</button><button id="back" aria-label="이전 프레임">−1프레임</button><button id="next" aria-label="다음 프레임">+1프레임</button><output id="time">00:00:00:00</output></div>
           <form id="jump-form" class="row"><label>시각 <input id="jump" class="short" placeholder="03:21.185"></label><button>이동</button></form>
-          <label id="music-control" class="row">배경음 <output id="music-value"></output><input id="music" type="range" min="0" max="100"></label>
+          <section class="audio-mixer stack" aria-label="오디오 레이어">
+            <h2>오디오 레이어</h2>
+            <p class="quiet">재생 중 바로 반영됩니다. 편집안 저장 후 내보내기에도 적용됩니다.</p>
+            <label id="voice-control" class="audio-row"><span id="voice-label">나레이션</span><input id="voice" aria-label="나레이션 볼륨" type="range" min="0" max="100"><output id="voice-value"></output><button id="voice-mute" type="button" aria-pressed="false">음소거</button></label>
+            <label id="music-control" class="audio-row">배경음악<input id="music" aria-label="배경음악 볼륨" type="range" min="0" max="100"><output id="music-value"></output><button id="music-mute" type="button" aria-pressed="false">음소거</button></label>
+            <label id="effects-control" class="audio-row">효과음<input id="effects" aria-label="효과음 볼륨" type="range" min="0" max="100"><output id="effects-value"></output><button id="effects-mute" type="button" aria-pressed="false">음소거</button></label>
+            <p id="audio-hint" class="quiet"></p>
+          </section>
         </div>
       </div>
       <aside class="stack">
@@ -57,35 +66,35 @@
           </details>
         </div>
         <div class="stack">
-          <h2 id="note-title">메모</h2><label for="note" class="visually-hidden">메모 내용</label>
-          <textarea id="note" maxlength="2000" placeholder="이 장면이나 파일에서 확인할 점"></textarea>
-          <button id="add-note">메모 추가</button>
+          <h2 id="note-title">수정 요청</h2><label for="note" class="visually-hidden">수정 요청 내용</label>
+          <textarea id="note" maxlength="2000" placeholder="이 장면에서 바꾸고 싶은 내용을 적어주세요"></textarea>
+          <button id="add-note">수정 요청 추가</button>
+          <p class="quiet">편집안을 저장하면 수정 요청 탭에 모입니다.</p>
           <ul id="notes" class="notes"></ul>
         </div>
       </aside>
     </div>
   </section>
-  <section id="handoff-page" aria-label="인계함" hidden>
-    <div class="split">
-      <section class="stack">
-        <h2>인계 기록</h2>
-        <p class="quiet">같은 저장소에서 시작한 Codex와 Claude가 각자 받은 인계를 읽습니다.</p>
-        <div id="handoffs" class="stack"></div>
-      </section>
-      <form id="handoff-form" class="stack">
-        <div class="row spread"><h2 id="form-title">새 인계</h2><button type="button" id="clear-reply" class="ghost" hidden>답장 취소</button></div>
-        <p id="reply-context" class="quiet" hidden></p>
-        <label>받는 쪽 <select id="recipient"><option value="codex">Codex</option><option value="claude">Claude</option><option value="human">사용자</option></select></label>
-        <label>제목 <input id="handoff-title" maxlength="140" required></label>
-        <label>완료한 일과 결정 <textarea id="summary" maxlength="10000" required></textarea></label>
-        <label>이어 할 일 <textarea id="next-step" maxlength="10000" required></textarea></label>
-        <label>검증 결과 또는 남은 확인 <textarea id="checks" maxlength="6000"></textarea></label>
-        <label>관련 파일 <textarea id="files" placeholder="저장소 상대 경로를 줄마다 하나씩"></textarea></label>
-        <label>아티펙트 연결 <select id="link-artifact" aria-label="연결할 아티펙트"></select></label>
-        <button class="primary">인계서 기록</button>
-      </form>
+  <section id="requests-page" aria-label="수정 요청" class="stack" hidden>
+    <div class="row spread"><h2>저장한 수정 요청</h2><p id="request-sync" class="quiet" role="status">자동으로 업데이트됩니다</p></div>
+    <p class="quiet">프레임을 누르면 해당 장면으로 이동합니다. 사용 중인 대화에서 “저장한 수정 요청 반영해줘”라고 요청하면 처리 결과가 여기에 기록됩니다.</p>
+    <p id="request-unsaved" class="notice" hidden>아직 저장하지 않은 변경이 있습니다. 아래에는 마지막으로 저장한 요청이 표시됩니다.</p>
+    <div class="row request-filters">
+      <label>작업물 <select id="request-artifact" aria-label="수정 요청 작업물"></select></label>
+      <label>상태 <select id="request-state"><option value="all">전체</option><option value="open">미완료</option><option value="pending">대기</option><option value="in_progress">작업 중</option><option value="done">완료</option><option value="blocked">확인 필요</option></select></label>
     </div>
+    <p id="requests-empty" class="quiet">저장한 수정 요청이 없습니다.</p>
+    <div id="requests" class="stack"></div>
   </section>
+<section id="versions-page" aria-label="버전" class="stack" hidden>
+  <div class="row spread"><h2>저장한 버전</h2><label>영상 <select id="versions-artifact" aria-label="버전 영상 선택"></select></label></div>
+  <p class="quiet">편집안을 저장할 때마다 rev가 만들어집니다. 반영이 끝난 버전은 당시의 영상과 완료 메모가 그대로 보관됩니다.</p>
+  <p id="versions-empty" class="quiet">아직 저장한 버전이 없습니다. 편집안을 저장하면 rev1부터 기록됩니다.</p>
+  <div class="version-layout">
+    <div id="version-list" class="stack" aria-label="버전 목록"></div>
+    <article id="version-detail" class="stack" hidden></article>
+  </div>
+</section>
 </main>
 </body>
 </html>

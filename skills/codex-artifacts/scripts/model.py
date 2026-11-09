@@ -10,12 +10,14 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import subprocess
 import tempfile
 import uuid
 
 VERSION = 1
 ROLES = ('codex', 'claude', 'human')
+REQUEST_STATES = ('pending', 'in_progress', 'done', 'blocked')
 KEY = re.compile(r'[a-z0-9][a-z0-9-]{0,63}\Z')
 HANDOFF_KEY = re.compile(r'[a-f0-9]{32}\Z')
 
@@ -197,13 +199,13 @@ class Project:
             if not 0 <= record['mask'] <= 45 or not 0 <= record['music_level'] <= 100:
                 raise ValueError('Caption mask: 0–45%; music level: 0–100%')
             record['fingerprints'] = {'file': fingerprint(original)}
-            for field in ('captions', 'music', 'voice'):
+            for field in ('captions', 'music', 'voice', 'effects'):
                 if spec.get(field):
                     value = relative(spec[field])
                     asset = self.local(value)
                     if field == 'captions' and asset.suffix.lower() not in ('.srt', '.vtt', '.json'):
                         raise ValueError('Use SRT, WebVTT or a timeline JSON for captions')
-                    if field in ('music', 'voice') and asset.suffix.lower() not in ('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.opus', '.flac'):
+                    if field in ('music', 'voice', 'effects') and asset.suffix.lower() not in ('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.opus', '.flac'):
                         raise ValueError(f'Unsupported audio file: {asset.suffix}')
                     record[field] = value
                     record['fingerprints'][field] = fingerprint(asset)
@@ -252,15 +254,20 @@ class Project:
             record = read_json(path)
             if record.get('version') != VERSION:
                 raise ValueError('Unsupported review version')
+            record.setdefault('voice', 100)
+            record.setdefault('effects', 100)
             return record
         return {'version': VERSION, 'revision': 0, 'music': artifact.get('music_level', 100),
-                'notes': [], 'captions': {}, 'mode': 'caption'}
+                'voice': 100, 'effects': 100, 'notes': [], 'captions': {}, 'mode': 'caption'}
 
     def save_review(self, key, change, cue_count):
         artifact = self.artifact(key)
         if not isinstance(change, dict):
             raise ValueError('Review must be an object')
         rev, music = change.get('revision'), change.get('music')
+        levels = {field: change.get(field, 100) for field in ('voice', 'effects')}
+        if any(type(value) is not int or not 0 <= value <= 100 for value in levels.values()):
+            raise ValueError('Audio levels must be integers from 0 to 100')
         mode = change.get('mode', 'caption')
         if mode not in ('caption', 'script') or (mode == 'script' and artifact['kind'] != 'video'):
             raise ValueError('Narration edits are only available for video')
@@ -294,12 +301,201 @@ class Project:
             if previous['revision'] != rev:
                 raise Conflict('Another session saved changes. Copy your draft before reloading.')
             record = {'version': VERSION, 'revision': rev + 1, 'updated_at': now(), 'music': music,
-                      'notes': cleaned, 'captions': captions, 'mode': mode}
+                      'notes': cleaned, 'captions': captions, 'mode': mode, **levels}
             if mode == 'script' and previous.get('mode') == mode and previous['captions'] == captions:
                 if previous.get('script_approved'):
                     record['script_approved'] = previous['script_approved']
+            if artifact['kind'] == 'video':
+                self._snapshot_version(key, artifact, record)
             write_json(self.storage('reviews', key + '.json'), record)
         return record
+
+    def versions(self, key):
+        self.artifact(key)
+        rows = [read_json(path) for path in self.storage('versions', key).glob('rev-*.json')]
+        return sorted(rows, key=lambda item: item['rev'], reverse=True)
+
+    def version(self, key, rev):
+        self.artifact(key)
+        if type(rev) is not int or rev < 1:
+            raise ValueError('Invalid version number')
+        return read_json(self.storage('versions', key, f'rev-{rev}.json'))
+
+    def _snapshot_version(self, key, artifact, review):
+        rev = max((item['rev'] for item in self.versions(key)), default=0) + 1
+        review['saved_rev'] = rev
+        row = {'version': VERSION, 'rev': rev, 'artifact': key, 'title': artifact['title'],
+               'created_at': now(), 'state': 'pending', 'source': artifact, 'review': review,
+               'summary': '', 'checks': '', 'request_results': []}
+        write_json(self.storage('versions', key, f'rev-{rev}.json'), row)
+        return row
+
+    def create_version(self, key):
+        with self.lock():
+            art = self.artifact(key)
+            if art['kind'] != 'video':
+                raise ValueError('Video versions require a video artifact')
+            review = self.review(key)
+            review.update(revision=review['revision'] + 1, updated_at=now())
+            row = self._snapshot_version(key, art, review)
+            write_json(self.storage('reviews', key + '.json'), review)
+            return row
+
+    def publish_version(self, key, rev, video, summary, checks, actor):
+        if actor not in ('codex', 'claude'):
+            raise ValueError('Record the client that produced the video')
+        summary = required_text(summary, 'Version summary', 6000)
+        checks = required_text(checks, 'Verification', 6000)
+        source = self.local(video)
+        if source.suffix.lower() != '.mp4':
+            raise ValueError('Version output must be an MP4')
+        info = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                                                  '-show_entries', 'stream=codec_type', '-of', 'json', str(source)],
+                                                 text=True, timeout=15))
+        if not info.get('streams'):
+            raise ValueError('The MP4 has no video stream')
+        with self.lock():
+            row = self.version(key, rev)
+            if row['state'] == 'ready':
+                raise Conflict('This version is complete and immutable. Create a new version instead.')
+            target = self.storage('versions', key, f'rev-{rev}.mp4')
+            if target.exists():
+                raise Conflict('A preserved output already exists for this version')
+            with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as handle:
+                temp = Path(handle.name)
+            try:
+                before = source.stat()
+                shutil.copyfile(source, temp)
+                after = source.stat()
+                if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+                    raise Conflict('The video changed while preserving the version')
+                digest = fingerprint(temp)
+                if digest != fingerprint(source):
+                    raise Conflict('The preserved video does not match its source')
+                results = []
+                for note in row['review']['notes']:
+                    try:
+                        item = self.request_item(key, note['id'])
+                        if any(item.get(field) != note.get(field) for field in ('frame', 'text', 'author')):
+                            raise FileNotFoundError()
+                    except FileNotFoundError:
+                        item = dict(note, status='pending', summary='', checks='')
+                    results.append(item)
+                temp.replace(target)
+                row.update(state='ready', completed_at=now(), by=actor, summary=summary, checks=checks,
+                           video=target.relative_to(self.root).as_posix(), sha256=digest,
+                           bytes=target.stat().st_size, request_results=results)
+                write_json(self.storage('versions', key, f'rev-{rev}.json'), row)
+            finally:
+                temp.unlink(missing_ok=True)
+            return row
+
+    def version_video(self, key, rev):
+        row = self.version(key, rev)
+        if row['state'] != 'ready':
+            raise FileNotFoundError('This version has no completed video yet')
+        path = self.local(row['video'])
+        if fingerprint(path) != row['sha256']:
+            raise Conflict('The preserved version video changed on disk')
+        return path
+
+    def attach_audio(self, key, tracks):
+        with self.lock():
+            art = self.artifact(key)
+            if art['kind'] != 'video':
+                raise ValueError('Audio layers require a video artifact')
+            self.asset(art, 'file')
+            updates = {}
+            for field, value in tracks.items():
+                if value is None:
+                    continue
+                if field not in ('voice', 'music', 'effects'):
+                    raise ValueError('Unknown audio layer')
+                source = self.local(value)
+                if source.suffix.lower() not in ('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.opus', '.flac'):
+                    raise ValueError('Unsupported audio file')
+                updates[field] = (relative(value), fingerprint(source))
+            if not updates:
+                raise ValueError('Provide at least one audio layer')
+            if all(art.get(field) == value and art.get('fingerprints', {}).get(field) == digest
+                   for field, (value, digest) in updates.items()):
+                return art
+            review = self.review(key)
+            # Preserve originals and reject drafts/renders based on the former audio setup.
+            write_json(self.storage('audio-history', key, uuid.uuid4().hex + '.json'),
+                       {'at': now(), 'artifact': art, 'review': review})
+            review.update(revision=review['revision'] + 1, updated_at=now())
+            write_json(self.storage('reviews', key + '.json'), review)
+            for field, (value, digest) in updates.items():
+                art[field] = value
+                art.setdefault('fingerprints', {})[field] = digest
+            write_json(self.storage('artifacts', key + '.json'), art)
+            return art
+
+    def request_item(self, key, ident, *, art=None, review=None):
+        if not isinstance(ident, str) or not KEY.fullmatch(ident):
+            raise ValueError('Invalid request ID')
+        art = art or self.artifact(key)
+        review = review or self.review(key)
+        note = next((item for item in review['notes'] if item['id'] == ident), None)
+        if note is None:
+            raise FileNotFoundError('Saved request not found')
+        version = sha256(json.dumps([note, art.get('fingerprints', {}).get('file', art['file'])],
+                                    sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        path = self.storage('requests', key, ident + '.json')
+        stored = read_json(path) if path.exists() else {'revision': 0, 'history': []}
+        current = stored if stored.get('request_version') == version else {}
+        return {**note, 'artifact': key, 'title': art['title'], 'kind': art['kind'],
+                'fps': art.get('fps'), 'file': art['file'],
+                'source_version': art.get('fingerprints', {}).get('file', art['file']),
+                'request_version': version, 'review_revision': review['revision'],
+                'revision': stored['revision'], 'status': current.get('status', 'pending'),
+                'by': current.get('by'), 'summary': current.get('summary', ''),
+                'checks': current.get('checks', ''), 'files': current.get('files', []),
+                'result_artifact': current.get('result_artifact'), 'updated_at': current.get('at'),
+                'history': stored['history']}
+
+    def requests(self, key=None, state=None, open_only=False):
+        if state is not None and state not in REQUEST_STATES:
+            raise ValueError('Invalid request status')
+        rows = []
+        for art in [self.artifact(key)] if key else self.artifacts():
+            review = self.review(art['id'])
+            for note in sorted(review['notes'], key=lambda item: (item['frame'] or 0, item['id'])):
+                item = self.request_item(art['id'], note['id'], art=art, review=review)
+                if (state is None or item['status'] == state) and (not open_only or item['status'] != 'done'):
+                    rows.append(item)
+        return rows
+
+    def update_request(self, key, ident, body):
+        state, actor = body.get('status'), body.get('by')
+        if state not in REQUEST_STATES or actor not in ROLES:
+            raise ValueError('Invalid request status or author')
+        summary = required_text(body.get('summary'), 'Result', 4000)
+        checks = (required_text if state == 'done' else optional_text)(body.get('checks'), 'Verification', 4000)
+        files = body.get('files', [])
+        if not isinstance(files, list) or len(files) > 100:
+            raise ValueError('Provide at most 100 result files')
+        files = list(dict.fromkeys(relative(name) for name in files))
+        for name in files:
+            self.local(name)
+        result = body.get('result_artifact') or None
+        if result:
+            self.artifact(result)
+        with self.lock():
+            item = self.request_item(key, ident)
+            if (type(body.get('revision')) is not int or body['revision'] != item['revision']
+                    or body.get('request_version') != item['request_version']):
+                raise Conflict('The request or its status changed. Read it again before updating.')
+            if state == 'done':
+                self.asset(self.artifact(key), 'file')
+            entry = {'at': now(), 'status': state, 'by': actor, 'summary': summary, 'checks': checks,
+                     'files': files, 'result_artifact': result, 'request_version': item['request_version'],
+                     'request_text': item['text'], 'frame': item['frame']}
+            write_json(self.storage('requests', key, ident + '.json'),
+                       {'version': VERSION, 'revision': item['revision'] + 1, **entry,
+                        'history': [*item['history'], entry]})
+            return self.request_item(key, ident)
 
     def approve_script(self, key, revision, originals):
         with self.lock():

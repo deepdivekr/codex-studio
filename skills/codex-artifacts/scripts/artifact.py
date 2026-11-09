@@ -12,7 +12,7 @@ import sys
 import tempfile
 
 from media import destination, edited_cues, format_srt, load_cues, render, require_caption_export
-from model import Conflict, Project, ROLES, project_root
+from model import Conflict, Project, REQUEST_STATES, ROLES, project_root
 from server import open_workspace, serve, server_status
 from sync import draft_payload, prepare, render_synced, script_draft
 
@@ -35,6 +35,10 @@ def handoff_instructions(path, role, script):
         f'Use `open ID` to obtain a live local HTTP URL; never open the skill\'s HTML file directly.'.encode(),
         f'When operating {agent}, check this checkout\'s inbox at the start of work, before editing:'.encode(),
         f'`python3 {script} handoff list --to {role} --open`'.encode(),
+        f'`python3 {script} requests list --open`'.encode(),
+        b'For relevant saved frame requests, record in_progress when starting, then done only after '
+        b'verifying the result. Use requests update with the current revision and request_version; '
+        b'include a result summary, checks, and result files or artifact. Use blocked for unfinished work.',
         b'Run from the repository root. On native Windows, use `python -X utf8` in place of `python3`.',
         b'If an entry matches the current task, read its next action, checks, and referenced files. '
         b'Check the recorded Git and review revision against the checkout. Record receipt after reading, '
@@ -132,10 +136,46 @@ def parser():
     add.add_argument('--captions')
     add.add_argument('--music')
     add.add_argument('--voice', help='Separate voice track; replaces embedded video audio')
+    add.add_argument('--effects', help='Separate sound-effects track aligned to the video start')
     add.add_argument('--music-level', type=int, default=100)
     add.add_argument('--mask', type=int, default=0, help='Cover the bottom N percent of baked captions')
     add.add_argument('--asset', action='append', default=[], help='An allowed relative HTML dependency; repeat as needed')
     commands.add_parser('list')
+    versions = commands.add_parser('versions', help='Immutable saved drafts and completed MP4 revisions')
+    version_ops = versions.add_subparsers(dest='operation', required=True)
+    version_ops.add_parser('list').add_argument('id')
+    version_ops.add_parser('create').add_argument('id')
+    version_show = version_ops.add_parser('show')
+    version_show.add_argument('id')
+    version_show.add_argument('rev', type=int)
+    publish = version_ops.add_parser('publish')
+    publish.add_argument('id')
+    publish.add_argument('rev', type=int)
+    publish.add_argument('--video', required=True)
+    publish.add_argument('--summary', required=True)
+    publish.add_argument('--checks', required=True)
+    publish.add_argument('--by', choices=('codex','claude'), required=True)
+    audio = commands.add_parser('audio', help='Attach aligned audio layers while preserving frame notes')
+    audio.add_argument('id')
+    for field in ('voice', 'music', 'effects'):
+        audio.add_argument('--' + field)
+    requests = commands.add_parser('requests', help='Saved frame requests and agent completion records')
+    request_ops = requests.add_subparsers(dest='operation', required=True)
+    listing = request_ops.add_parser('list')
+    listing.add_argument('--artifact')
+    listing.add_argument('--status', choices=REQUEST_STATES)
+    listing.add_argument('--open', dest='open_only', action='store_true')
+    update = request_ops.add_parser('update')
+    update.add_argument('artifact')
+    update.add_argument('id')
+    update.add_argument('--revision', type=int, required=True)
+    update.add_argument('--request-version', required=True)
+    update.add_argument('--status', choices=REQUEST_STATES, required=True)
+    update.add_argument('--by', choices=ROLES, required=True)
+    update.add_argument('--summary', required=True)
+    update.add_argument('--checks', default='')
+    update.add_argument('--file', action='append', default=[])
+    update.add_argument('--result-artifact')
     review = commands.add_parser('review')
     sub = review.add_subparsers(dest='operation', required=True)
     sub.add_parser('show').add_argument('id')
@@ -149,6 +189,7 @@ def parser():
     encode.add_argument('id')
     encode.add_argument('--out', required=True)
     encode.add_argument('--font', default='sans-serif')
+    encode.add_argument('--rev', type=int, help='Render an immutable saved draft rather than the live draft')
     script = commands.add_parser('script', help='Review and approve a narration draft')
     draft_ops = script.add_subparsers(dest='operation', required=True)
     draft_ops.add_parser('show').add_argument('id')
@@ -163,6 +204,7 @@ def parser():
         operation.add_argument('--voice')
         operation.add_argument('--timings')
         operation.add_argument('--clips', help='Folder with 0001.wav, 0002.wav, ...')
+        operation.add_argument('--effects', help='Sound effects already aligned to the new timeline')
         if action == 'render':
             operation.add_argument('--out', required=True)
             operation.add_argument('--font', default='sans-serif')
@@ -209,15 +251,32 @@ def run(args):
         return project.add(vars(args))
     if command == 'list':
         return project.artifacts()
+    if command == 'versions':
+        if args.operation == 'list':
+            return project.versions(args.id)
+        if args.operation == 'create':
+            return project.create_version(args.id)
+        if args.operation == 'show':
+            return project.version(args.id, args.rev)
+        return project.publish_version(args.id, args.rev, args.video, args.summary, args.checks, args.by)
+    if command == 'audio':
+        return project.attach_audio(args.id, {field: getattr(args, field) for field in ('voice', 'music', 'effects')})
+    if command == 'requests':
+        if args.operation == 'list':
+            return project.requests(args.artifact, args.status, args.open_only)
+        return project.update_request(args.artifact, args.id,
+                                      {'revision': args.revision, 'request_version': args.request_version,
+                                       'status': args.status, 'by': args.by, 'summary': args.summary,
+                                       'checks': args.checks, 'files': args.file, 'result_artifact': args.result_artifact})
     if command == 'render':
-        return str(render(project, args.id, args.out, args.font))
+        return str(render(project, args.id, args.out, args.font, version=args.rev))
     if command == 'script':
         if args.operation == 'show':
             return draft_payload(project, args.id)
         _, _, original, _ = script_draft(project, args.id)
         return project.approve_script(args.id, args.revision, [cue['text'] for cue in original])
     if command == 'sync':
-        inputs = dict(voice=args.voice, timings=args.timings, clips=args.clips)
+        inputs = dict(voice=args.voice, timings=args.timings, clips=args.clips, effects=args.effects)
         if args.operation == 'plan':
             return prepare(project, args.id, **inputs)[0]
         return render_synced(project, args.id, args.out, args.font, **inputs)

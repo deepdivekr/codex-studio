@@ -99,3 +99,15 @@ class NarrationWorkflow(unittest.TestCase):
         (self.root/'timings.json').write_text(json.dumps(data), encoding='utf-8')
         with self.assertRaisesRegex(ValueError, 'do not match'):
             prepare(self.project, 'cut', voice='replacement.wav', timings='timings.json')
+
+    def test_effects_must_be_retimed_when_narration_changes(self):
+        self.project.attach_audio('cut', {'effects':'bed.wav'})
+        draft = self.save_script()
+        self.project.approve_script('cut', draft['revision'], self.original)
+        stats, _ = prepare(self.project, 'cut', clips='clips')
+        self.assertTrue(stats['effects_need_alignment'])
+        with self.assertRaisesRegex(ValueError, 'Recreate sound effects'):
+            render_synced(self.project, 'cut', 'wrong.mp4', 'sans-serif', clips='clips')
+        self.assertFalse((self.root / 'wrong.mp4').exists())
+        result = render_synced(self.project, 'cut', 'with-effects.mp4', 'sans-serif', clips='clips', effects='bed.wav')
+        self.assertFalse(result['effects_need_alignment'])

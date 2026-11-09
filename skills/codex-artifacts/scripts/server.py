@@ -119,13 +119,22 @@ class Handler(BaseHTTPRequestHandler):
             if self.command != 'HEAD':
                 self.wfile.write(data)
             return
-        if path in ('/app.js', '/style.css'):
+        if path in ('/app.js', '/requests.js', '/versions.js', '/style.css'):
             return self.stream(UI / path[1:])
         if path == '/api/health':
             return self.payload({'instance': self.server.instance})
         if path == '/api/board':
-            return self.payload({'project': self.project.root.name, 'artifacts': self.project.artifacts(),
-                                 'handoffs': self.project.handoffs()})
+            return self.payload({'project': self.project.root.name, 'artifacts': self.project.artifacts()})
+        if path == '/api/requests':
+            return self.payload(self.project.requests())
+        match = re.fullmatch(rf'/api/versions/{ROUTE_ID}', path)
+        if match:
+            return self.payload(self.project.versions(match[1]))
+        match = re.fullmatch(rf'/versions/{ROUTE_ID}/([1-9][0-9]*)/(video|download)', path)
+        if match:
+            key, rev, action = match.groups()
+            extra = [('Content-Disposition', f'attachment; filename="{key}-rev{rev}.mp4"')] if action == 'download' else []
+            return self.stream(self.project.version_video(key, int(rev)), mime='video/mp4', extra=extra)
         match = re.fullmatch(rf'/api/artifacts/{ROUTE_ID}', path)
         if match:
             key = match[1]
@@ -134,7 +143,7 @@ class Handler(BaseHTTPRequestHandler):
             if artifact['kind'] == 'html':
                 artifact['preview'] = f"/preview/{key}/" + quote(PurePosixPath(artifact['file']).name)
             return self.payload({'artifact': artifact, 'cues': cues, 'review': self.project.review(key)})
-        match = re.fullmatch(rf'/media/{ROUTE_ID}/(file|music|voice)', path)
+        match = re.fullmatch(rf'/media/{ROUTE_ID}/(file|music|voice|effects)', path)
         if match:
             key, field = match.groups()
             artifact = self.project.artifact(key)
@@ -170,6 +179,9 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(size))
         if not isinstance(body, dict):
             raise ValueError('Expected a JSON object')
+        match = re.fullmatch(rf'/api/requests/{ROUTE_ID}/{ROUTE_ID}', path)
+        if match:
+            return self.payload(self.project.update_request(match[1], match[2], body))
         match = re.fullmatch(rf'/api/artifacts/{ROUTE_ID}', path)
         if match:
             artifact = self.project.artifact(match[1])

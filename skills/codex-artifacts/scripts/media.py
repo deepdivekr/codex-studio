@@ -102,8 +102,18 @@ def require_caption_export(review):
         raise Conflict('This draft changes narration. Approve the script, then run sync with new audio.')
 
 
-def render(project, key, output, font):
-    art = project.artifact(key)
+def mix_audio(streams):
+    filters = [f'[{source}]volume={level/100:.2f},apad[layer{i}]'
+               for i, (source, level) in enumerate(streams)]
+    labels = ''.join(f'[layer{i}]' for i in range(len(streams)))
+    filters.append(f'{labels}amix=inputs={len(streams)}:duration=longest:normalize=0,'
+                   'alimiter=limit=0.95:latency=1[a]')
+    return ';'.join(filters)
+
+
+def render(project, key, output, font, *, version=None):
+    snapshot = project.version(key, version) if version is not None else None
+    art = snapshot['source'] if snapshot else project.artifact(key)
     if art['kind'] != 'video':
         raise ValueError('Render is available only for video artifacts')
     if not output.lower().endswith('.mp4'):
@@ -111,25 +121,30 @@ def render(project, key, output, font):
     if not re.fullmatch(r'[\w -]{1,80}', font):
         raise ValueError('Invalid subtitle font family')
     out = destination(project, output)
-    review = project.review(key)
+    review = snapshot['review'] if snapshot else project.review(key)
     require_caption_export(review)
     video = project.asset(art, 'file')
     music = project.asset(art, 'music') if 'music' in art else None
     voice = project.asset(art, 'voice') if 'voice' in art else None
+    effects = project.asset(art, 'effects') if 'effects' in art else None
     captions = format_srt(edited_cues(load_cues(project, art), review))
     channels = subprocess.check_output(['ffprobe', '-v', 'error', '-select_streams', 'a:0',
                                         '-show_entries', 'stream=index', '-of', 'csv=p=0', str(video)],
                                        text=True, encoding='utf-8').strip()
+    duration = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                                              '-of', 'default=nw=1:nk=1', str(video)], text=True))
+    if not math.isfinite(duration) or duration <= 0:
+        raise ValueError('Cannot determine video duration')
     with tempfile.TemporaryDirectory(dir=out.parent, prefix='.render-') as scratch:
         temp = Path(scratch) / 'result.mp4'
         cmd = ['ffmpeg', '-v', 'error', '-nostdin', '-i', str(video)]
-        base = '0:a:0' if channels else None
-        if voice:
-            base = '1:a:0'
-            cmd += ['-i', str(voice)]
-        bed = f'{2 if voice else 1}:a:0'
-        if music:
-            cmd += ['-i', str(music)]
+        streams = [('0:a:0', review.get('voice', 100))] if channels and not voice else []
+        input_index = 1
+        for field, path in [('voice', voice), ('music', music), ('effects', effects)]:
+            if path:
+                cmd += ['-i', str(path)]
+                streams.append((f'{input_index}:a:0', review.get(field, 100)))
+                input_index += 1
         filters = []
         if art['mask']:
             filters.append(f"drawbox=x=0:y=ih*(100-{art['mask']})/100:w=iw:h=ih:color=0x080808:t=fill")
@@ -141,23 +156,15 @@ def render(project, key, output, font):
             cmd += ['-vf', ','.join(filters), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18']
         else:
             cmd += ['-c:v', 'copy']
-        if music and base:
-            cmd += ['-filter_complex',
-                    f'[{base}]apad[voice];[{bed}]volume={review["music"]/100:.2f}[bed];'
-                    '[voice][bed]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:latency=1[a]',
-                    '-map', '[a]']
-        elif base:
-            cmd += ['-map', base, '-af', 'apad']
-        elif music:
-            cmd += ['-map', bed, '-af', f'volume={review["music"]/100:.2f},apad']
-        if base or music:
-            cmd += ['-c:a', 'aac', '-b:a', '192k', '-shortest']
-        cmd += ['-movflags', '+faststart', str(temp)]
+        if streams:
+            cmd += ['-filter_complex', mix_audio(streams), '-map', '[a]']
+            cmd += ['-c:a', 'aac', '-b:a', '192k']
+        cmd += ['-t', f'{duration:.6f}', '-movflags', '+faststart', str(temp)]
         subprocess.run(cmd, check=True, cwd=scratch)
         with project.lock():
             if out.exists() or out.is_symlink():
                 raise Conflict(f'Output already exists: {output}')
-            if project.review(key)['revision'] != review['revision']:
+            if snapshot is None and project.review(key)['revision'] != review['revision']:
                 raise Conflict('Review changed while rendering. Render again from the latest revision.')
             temp.replace(out)
     return out

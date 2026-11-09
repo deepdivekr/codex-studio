@@ -107,6 +107,39 @@ class Workflow(unittest.TestCase):
         self.assertCountEqual(results, [1, 'conflict'])
         self.assertEqual(self.project.review('design')['revision'], 1)
 
+    def test_saved_requests_keep_completion_separate_and_invalidate_changed_comments(self):
+        draft = self.project.review('design')
+        draft['notes'] = [{'id':'change-1', 'author':'human', 'frame':None, 'text':'버튼을 크게'}]
+        saved = self.project.save_review('design', draft, 0)
+        request = self.cli('requests', 'list', '--open')[0]
+        self.assertEqual(request['status'], 'pending')
+        updated = self.cli('requests', 'update', 'design', 'change-1', '--revision', '0',
+                           '--request-version', request['request_version'], '--by', 'codex',
+                           '--status', 'done', '--summary', '버튼 크기 변경', '--checks', '모바일 클릭 확인',
+                           '--file', 'preview.html', '--result-artifact', 'design')
+        self.assertEqual(updated['status'], 'done')
+        self.assertEqual(self.cli('requests', 'list', '--open'), [])
+        # A human's existing draft can still save without erasing the agent's result.
+        saved = self.project.save_review('design', saved, 0)
+        self.assertEqual(self.project.requests()[0]['status'], 'done')
+        saved['notes'][0]['text'] = '버튼을 더 크게'
+        self.project.save_review('design', saved, 0)
+        changed = self.project.requests()[0]
+        self.assertEqual(changed['status'], 'pending')
+        self.assertEqual(len(changed['history']), 1)
+        with self.assertRaises(Conflict):
+            self.project.update_request('design','change-1', dict(updated, revision=1))
+        with self.assertRaises(ValueError):
+            self.project.update_request('design','change-1', dict(changed, status='done', by='claude', summary='Done', checks=''))
+        body = dict(changed, status='done', by='claude', summary='확대 완료', checks='확인 완료')
+        def finish(_):
+            try:
+                return self.project.update_request('design', 'change-1', body)['status']
+            except Conflict:
+                return 'conflict'
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            self.assertCountEqual(list(executor.map(finish, range(2))), ['done', 'conflict'])
+
     def test_server_restricts_preview_files_and_post_origin(self):
         with Server(self.project, 0) as server:
             thread = Thread(target=server.serve_forever, daemon=True)
@@ -134,6 +167,14 @@ class Workflow(unittest.TestCase):
                 headers['Origin'] = base
                 with urlopen(Request(path, data=body, headers=headers), timeout=5) as response:
                     self.assertEqual(json.load(response)['revision'], 1)
+                draft = self.project.review('design')
+                draft['notes'] = [{'id':'http-note','frame':None,'author':'human','text':'Revise'}]
+                self.project.save_review('design', draft, 0)
+                with urlopen(base + '/api/requests', timeout=5) as response:
+                    item = json.load(response)[0]
+                body = json.dumps(dict(item, status='done', by='codex', summary='Updated', checks='Checked')).encode()
+                with urlopen(Request(base + '/api/requests/design/http-note', data=body, headers=headers), timeout=5) as response:
+                    self.assertEqual(json.load(response)['status'], 'done')
             finally:
                 server.shutdown()
                 thread.join(timeout=5)
@@ -199,6 +240,77 @@ class Workflow(unittest.TestCase):
         captions.write_text('changed',encoding='utf-8')
         with self.assertRaises(Conflict):
             load_cues(self.project,art)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'FFmpeg required for audio test')
+    def test_export_preserves_audio_tail_after_last_video_frame(self):
+        subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=c=navy:s=160x90:r=24:d=1',
+                        '-f','lavfi','-i','sine=frequency=440:duration=1.15','-c:v','libx264','-c:a','aac',
+                        str(self.root/'tail.mp4')],check=True)
+        self.project.add({'id':'tail','kind':'video','file':'tail.mp4','title':'Tail','fps':'24','mask':0,'music_level':100})
+        output=render(self.project,'tail','tail-export.mp4','sans-serif')
+        def duration(path):
+            return float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration',
+                                                   '-of','default=nw=1:nk=1',str(path)],text=True))
+        self.assertAlmostEqual(duration(output),duration(self.root/'tail.mp4'),delta=.03)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'FFmpeg required for audio test')
+    def test_three_audio_layers_render_only_selected_sound(self):
+        import array
+        import math
+        subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=c=navy:s=160x90:r=24:d=1',
+                        '-c:v','libx264',str(self.root/'layers.mp4')],check=True)
+        for name, freq in [('voice',220),('music',440),('effects',660)]:
+            subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i',f'sine=frequency={freq}:duration=1',
+                            str(self.root/(name+'.wav'))],check=True)
+        art = self.project.add({'id':'layers','kind':'video','file':'layers.mp4','title':'Layers',
+                                'fps':'24','mask':0,'music_level':100,'voice':'voice.wav','music':'music.wav'})
+        draft = self.project.review('layers')
+        draft['notes'] = [{'id':'frame-1','author':'human','frame':6,'text':'효과음 조절'}]
+        saved = self.project.save_review('layers', draft, 0)
+        self.project.attach_audio('layers', {'effects':'effects.wav'})
+        with self.assertRaises(Conflict):
+            self.project.save_review('layers', saved, 0)
+        self.assertEqual(self.project.review('layers')['notes'], saved['notes'])
+        review = self.project.review('layers')
+        review.update(voice=0, music=0, effects=100)
+        self.project.save_review('layers', review, 0)
+        output = render(self.project,'layers','effects-only.mp4','sans-serif')
+        raw = subprocess.check_output(['ffmpeg','-v','error','-i',str(output),'-vn','-ac','1','-ar','8000','-f','f32le','-'])
+        samples = array.array('f',raw)
+        def energy(freq):
+            return abs(sum(value * complex(math.cos(2*math.pi*freq*i/8000), math.sin(2*math.pi*freq*i/8000))
+                           for i,value in enumerate(samples)))
+        self.assertGreater(energy(660), 30 * max(energy(220), energy(440)))
+        old_rev = self.project.review('layers')['saved_rev']
+        self.project.publish_version('layers', old_rev, 'effects-only.mp4', 'Effects only', 'Verified frequencies', 'codex')
+        preserved = self.project.version_video('layers', old_rev).read_bytes()
+        with self.assertRaises(Conflict):
+            self.project.publish_version('layers', old_rev, 'effects-only.mp4', 'Replace', 'Checked', 'codex')
+        review = self.project.review('layers'); review['effects'] = 0
+        self.project.save_review('layers', review, 0)
+        output = render(self.project,'layers','muted.mp4','sans-serif')
+        silent = array.array('f',subprocess.check_output(['ffmpeg','-v','error','-i',str(output),'-vn','-ac','1','-f','f32le','-']))
+        self.assertLess(max(abs(value) for value in silent), .0001)
+        new_rev = self.project.review('layers')['saved_rev']
+        self.project.publish_version('layers', new_rev, 'muted.mp4', 'All muted', 'Verified silence', 'claude')
+        self.assertGreater(new_rev, old_rev)
+        # Changing a working output cannot alter a previously archived MP4.
+        (self.root/'effects-only.mp4').write_bytes(b'replaced work file')
+        self.assertEqual(self.project.version_video('layers', old_rev).read_bytes(), preserved)
+        self.assertEqual(self.project.version('layers', old_rev)['review']['effects'], 100)
+        self.assertEqual(self.project.version('layers', new_rev)['review']['effects'], 0)
+        render(self.project,'layers','from-old-rev.mp4','sans-serif',version=old_rev)
+        self.assertEqual(self.project.review('layers')['saved_rev'], new_rev)
+        with Server(self.project,0) as server:
+            thread=Thread(target=server.serve_forever,daemon=True); thread.start()
+            try:
+                url=f'http://127.0.0.1:{server.server_port}/versions/layers/{old_rev}/download'
+                with urlopen(Request(url,headers={'Range':'bytes=0-31'}),timeout=5) as response:
+                    self.assertEqual(response.status,206)
+                    self.assertIn(f'rev{old_rev}.mp4',response.headers['Content-Disposition'])
+                    self.assertEqual(response.read(),preserved[:32])
+            finally:
+                server.shutdown(); thread.join(timeout=5)
 
 
 if __name__ == '__main__':
