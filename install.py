@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import io
-import json
 from pathlib import Path, PurePosixPath
 import re
 import stat
@@ -73,11 +72,6 @@ def main(argv=None):
     parser.add_argument('--for', dest='agent', choices=('both', 'codex', 'claude'), default='both')
     parser.add_argument('--ref', default='main', help='GitHub branch, tag or commit to install')
     parser.add_argument('--archive', type=Path, help='Use a local source ZIP instead of downloading')
-    selection = parser.add_mutually_exclusive_group()
-    selection.add_argument('--studio-only', action='store_true', help='Install Studio without production skill packs')
-    selection.add_argument('--bundle', action='append', default=None,
-                        choices=('remotion', 'hyperframes', 'pixijs', 'motion', 'gl-transitions', 'storyboarding', 'anatomy-reveal', 'colorfigures'),
-                        help='Install only these packs instead of all eight (repeatable; no runtimes)')
     args = parser.parse_args(argv)
     project = args.project.expanduser().resolve(strict=True)
     if not project.is_dir():
@@ -93,16 +87,6 @@ def main(argv=None):
                                 capture_output=True, text=True, encoding='utf-8')
         if result.returncode:
             raise ValueError(result.stderr.strip() or result.stdout.strip() or 'Skill installation failed')
-        packs = ([] if args.studio_only else args.bundle if args.bundle is not None else
-                 list(json.loads((skill / 'assets/toolkits.json').read_text(encoding='utf-8'))['packs']))
-        if packs:
-            result = subprocess.run([sys.executable, '-X', 'utf8', str(skill / 'scripts/toolkit.py'),
-                                     '--project', str(project), 'install', *dict.fromkeys(packs),
-                                     '--for', args.agent, '--keep-existing'], capture_output=True, text=True, encoding='utf-8')
-            if result.returncode:
-                raise ValueError('Studio was installed, but production skill packs did not finish. Rerun the same installer to resume: '
-                                 + (result.stderr.strip() or result.stdout.strip()))
-            print(result.stdout, end='')
     clients = {'both': 'Codex · Claude', 'codex': 'Codex', 'claude': 'Claude'}[args.agent]
     print(f'설치 완료 · {clients}\n프로젝트: {project}\n새 대화에서 “스튜디오 열어줘”라고 요청하세요.\n업데이트도 같은 설치 명령을 사용하면 됩니다.')
 

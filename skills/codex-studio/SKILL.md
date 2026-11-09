@@ -1,6 +1,6 @@
 ---
 name: codex-studio
-description: Open Codex Studio to review videos, images and HTML, with frame comments, region requests, subtitles, audio levels and shared Codex/Claude records. Use for 편집실/스튜디오 requests, mobile access to that editor, or adding video-tool skill packs to Studio. General websites and unrelated code questions use their own workflows.
+description: Open Codex Studio to review videos, images and HTML, with frame comments, region requests, subtitles, audio levels and shared Codex/Claude records. Use for 편집실/스튜디오 requests or mobile access to that editor. General websites and unrelated code questions use their own workflows.
 ---
 
 # Codex Studio
@@ -9,7 +9,6 @@ The editor belongs to the human reviewing the active client's work. Do not ask t
 
 For **mobile or another computer**, read [mobile and Sites review](references/mobile-sites.md) before choosing a URL. Responsive layout does not make localhost reachable remotely. Use the available Sites skill when hosted review is requested; preserve owner-private access and durable cloud saves. This is a deployment workflow, not a built-in Studio hosting command.
 
-For **new video-production capabilities or included skill bundles**, read [video toolkit](references/video-toolkit.md). It routes 30 audited projects and provides eight project-local skill packs (seven pinned upstream sources plus one licensed local snapshot) through `scripts/toolkit.py`; runtimes, models and MCP connections remain separate. The standard one-line installer includes all eight packs and preserves existing skill folders. Keep normal review requests on the existing renderer.
 
 For image requests, read [references/image-edits.md](references/image-edits.md). Clicks record reference points; dragged rectangles define editable regions. Neither action automatically segments an object's outline. Keep the original image and preserve pixels outside the requested rectangle using the supplied prepare/apply workflow. Image generation uses the active client's available image-editing tool, not this local server. Image/HTML version archives are not yet implemented; register image results under new IDs and link them to completed requests. Video rev archives remain supported.
 

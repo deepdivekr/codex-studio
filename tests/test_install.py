@@ -1,6 +1,5 @@
 import importlib.util
 import io
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -26,24 +25,10 @@ class OneLineInstall(unittest.TestCase):
         self.project = self.root / '한글 프로젝트'
         self.project.mkdir()
         self.archive = self.root / 'source.zip'
-        catalog = json.loads((ROOT/'skills/codex-studio/assets/toolkits.json').read_text(encoding='utf-8'))
-        fixture_files = {}
-        for name in catalog['packs']:
-            path = f'skills/{name}/SKILL.md'
-            content = f'---\nname: {name}\ndescription: Offline installer fixture\n---\n'
-            raw = content.encode()
-            fixture_files[path] = content
-            catalog['packs'][name] = {'repository':'test/fixture', 'commit':'a'*40,
-                'prefixes':[f'skills/{name}/'], 'bundled_file':'installer-fixtures.json',
-                'files':[{'path':path,'size':len(raw),'sha':hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()}]}
         with zipfile.ZipFile(self.archive, 'w') as archive:
             for file in (ROOT / 'skills/codex-studio').rglob('*'):
                 if file.is_file() and '__pycache__' not in file.parts:
-                    if file.name == 'toolkits.json':
-                        continue
                     archive.write(file, 'codex-studio-main/' + file.relative_to(ROOT).as_posix())
-            archive.writestr('codex-studio-main/skills/codex-studio/assets/toolkits.json', json.dumps(catalog))
-            archive.writestr('codex-studio-main/skills/codex-studio/assets/installer-fixtures.json', json.dumps({'files':fixture_files}))
             archive.writestr('codex-studio-main/private.mp4', b'not a skill file')
 
     def run_install(self, *args, success=True):
@@ -57,25 +42,14 @@ class OneLineInstall(unittest.TestCase):
         (self.project / 'AGENTS.md').write_bytes('# 기존 지침\r\n'.encode())
         output = self.run_install().stdout
         self.assertIn('설치 완료', output)
-        for name in bootstrap.json.loads((ROOT/'skills/codex-studio/assets/toolkits.json').read_text(encoding='utf-8'))['packs']:
-            for client in ('.agents', '.claude'):
-                self.assertTrue((self.project/client/'skills'/name/'SKILL.md').is_file())
-        existing = self.project/'.agents/skills/remotion/SKILL.md'
-        existing.write_text('user customized skill', encoding='utf-8')
         instructions = {name: (self.project / name).read_bytes() for name in ('AGENTS.md', 'CLAUDE.md')}
         for client in ('.agents', '.claude'):
             skill = self.project / client / 'skills/codex-studio'
             self.assertTrue((skill / 'SKILL.md').is_file())
-            self.assertTrue((skill / 'references/image-edits.md').is_file())
-            catalog = subprocess.check_output([sys.executable, '-X', 'utf8', str(skill / 'scripts/toolkit.py'), 'list'],
-                                              cwd=self.project, encoding='utf-8')
-            self.assertEqual(len(json.loads(catalog)['projects']), 30)
-            self.assertEqual(len(json.loads(catalog)['packs']), 8)
-            bundled = subprocess.check_output([sys.executable, '-X', 'utf8', str(skill / 'scripts/toolkit.py'),
-                                               'install', 'colorfigures', '--for', 'both'],
-                                              cwd=self.project, encoding='utf-8')
-            self.assertIn(json.loads(bundled)[0]['status'], ('installed', 'already_installed'))
+            self.assertEqual(sorted(p.name for p in skill.parent.iterdir()), ['codex-studio'])
+            self.assertFalse((skill / 'scripts/toolkit.py').exists())
             self.assertTrue((skill / 'references/mobile-sites.md').is_file())
+            self.assertTrue((skill / 'references/image-edits.md').is_file())
             result = subprocess.check_output([sys.executable, str(skill / 'scripts/artifact.py'), 'list'],
                                               cwd=self.project, encoding='utf-8')
             self.assertEqual(json.loads(result), [])
@@ -87,7 +61,6 @@ class OneLineInstall(unittest.TestCase):
         custom = self.project / '.agents/skills/codex-studio/custom.txt'
         custom.write_bytes(b'local extension')
         self.run_install()
-        self.assertEqual(existing.read_text(encoding='utf-8'), 'user customized skill')
         self.assertEqual(review.read_bytes(), b'{"notes":["keep my edits"]}')
         self.assertEqual(custom.read_bytes(), b'local extension')
         self.assertEqual(instructions, {name: (self.project / name).read_bytes() for name in instructions})
@@ -99,13 +72,6 @@ class OneLineInstall(unittest.TestCase):
         self.assertTrue((target / '.claude/skills/codex-studio/SKILL.md').is_file())
         self.assertFalse((target / '.agents').exists())
         self.assertFalse((self.project / '.codex-artifacts').exists())
-
-    def test_studio_only_and_selected_pack(self):
-        self.run_install('--studio-only')
-        self.assertFalse((self.project/'.agents/skills/remotion').exists())
-        self.run_install('--bundle', 'motion')
-        self.assertTrue((self.project/'.agents/skills/motion/SKILL.md').is_file())
-        self.assertFalse((self.project/'.agents/skills/remotion').exists())
 
     def test_bad_download_leaves_project_untouched(self):
         (self.project / 'AGENTS.md').write_bytes(b'keep existing instructions')
