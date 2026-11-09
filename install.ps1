@@ -17,11 +17,12 @@
     foreach ($studioCandidate in @('py', 'python3', 'python')) {
         $studioCommand = Get-Command $studioCandidate -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if (-not $studioCommand) { continue }
-        $studioCandidateArgs = if ($studioCandidate -eq 'py') { @('-3') } else { @() }
+        $studioCandidateArgs = @()
+        if ($studioCandidate -eq 'py') { $studioCandidateArgs = @('-3') }
         & $studioCommand.Source @studioCandidateArgs -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' *> $null
         if ($LASTEXITCODE -eq 0) {
             $studioPython = $studioCommand.Source
-            $studioPythonArgs = $studioCandidateArgs
+            $studioPythonArgs = @($studioCandidateArgs)
             break
         }
     }

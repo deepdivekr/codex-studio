@@ -1,8 +1,10 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import stat
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -95,6 +97,38 @@ class OneLineInstall(unittest.TestCase):
                     bootstrap.extract_skill(data.getvalue(), destination)
                 self.assertFalse(destination.exists())
                 self.assertFalse((self.root / 'escape.py').exists())
+
+    @unittest.skipUnless(os.name == 'nt', 'PowerShell installer runs on Windows')
+    def test_powershell_passes_project_to_the_downloaded_installer(self):
+        shells = [shell for name in ('powershell', 'pwsh') if (shell := shutil.which(name))]
+        if not shells:
+            self.skipTest('PowerShell unavailable')
+        stub = self.root / 'bootstrap-stub.py'
+        stub.write_text('import json, sys\nfrom pathlib import Path\n'
+                        'target = Path(sys.argv[sys.argv.index("--project") + 1])\n'
+                        '(target / "received.json").write_text(json.dumps(sys.argv), encoding="utf-8")\n',
+                        encoding='utf-8')
+        command = '''
+function Invoke-WebRequest {
+    param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
+    Copy-Item -LiteralPath $env:STUDIO_INSTALL_TEST_STUB -Destination $OutFile
+}
+$before = $ErrorActionPreference
+Get-Content -Raw -LiteralPath $env:STUDIO_INSTALL_TEST_SCRIPT | Invoke-Expression
+if ($before -ne $ErrorActionPreference) { throw 'Installer changed the parent shell preferences' }
+'''
+        for shell in shells:
+            with self.subTest(shell=shell):
+                receipt = self.project / 'received.json'
+                receipt.unlink(missing_ok=True)
+                env = dict(os.environ, STUDIO_INSTALL_TEST_STUB=str(stub),
+                           STUDIO_INSTALL_TEST_SCRIPT=str(ROOT / 'install.ps1'))
+                result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-Command', command],
+                                        cwd=self.project, env=env, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+                self.assertTrue(receipt.exists(), result.stdout.decode(errors='replace'))
+                self.assertEqual(json.loads(receipt.read_text(encoding='utf-8'))[1:],
+                                 ['--project', str(self.project)])
 
 
 if __name__ == '__main__':
