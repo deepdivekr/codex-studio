@@ -4,9 +4,11 @@ A local studio for reviewing videos, images and HTML, with shared revision reque
 
 ## 시작하기
 
-이 저장소를 클론한 폴더에서 다음을 실행합니다. Windows PowerShell에서는 `python3` 대신 `python -X utf8`을 사용하세요.
+아래에서 `/path/to/project`를 편집할 프로젝트의 실제 경로로 바꾸세요. Windows PowerShell에서는 `python3` 대신 `python -X utf8`을 사용하세요.
 
 ```bash
+git clone https://github.com/deepdivekr/codex-studio.git
+cd codex-studio
 python3 skills/codex-studio/scripts/artifact.py --project /path/to/project install
 cd /path/to/project
 python3 .agents/skills/codex-studio/scripts/artifact.py open
