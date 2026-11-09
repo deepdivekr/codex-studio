@@ -2,6 +2,8 @@
 
 AI가 만든 **영상·이미지·HTML에 수정 요청을 남기는 로컬 편집실**입니다. Codex와 Claude를 번갈아 써도 같은 작업과 기록을 이어갑니다.
 
+설치하면 해당 저장소의 AGENTS.md와 CLAUDE.md에 Codex Studio 스킬을 사용하도록 지침을 추가합니다. 이후 영상·이미지·HTML의 검토·편집을 요청하면 Codex와 Claude가 설치된 스킬을 읽고 편집실과 저장된 수정 요청을 활용하도록 안내합니다.
+
 PC에서는 로컬 편집실을 열고, **휴대폰에서는 [Sites로 배포한 HTTPS 편집실](#휴대폰에서-사용하기--sites)**을 이용할 수 있습니다.
 
 ## 한 줄 설치
@@ -23,7 +25,18 @@ irm https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/in
 
 </details>
 
-해당 저장소에 Codex·Claude 스킬을 설치하고, **저장소의 `AGENTS.md`·`CLAUDE.md`**에 작업 이어받기 안내를 추가합니다. 사용자 폴더의 `.codex/AGENTS.md`는 수정하지 않습니다. **업데이트도 같은 명령**입니다. 설치 후 해당 프로젝트에서 새 대화를 시작하세요.
+기본 설치는 해당 저장소에 다음 내용을 적용합니다.
+
+| 대상 | 설치 시 변경 내용 |
+| --- | --- |
+| `.agents/skills/codex-studio/` | Codex용 스킬과 편집실 파일 설치 |
+| `.claude/skills/codex-studio/` | Claude용 스킬과 편집실 파일 설치 |
+| `AGENTS.md` | 관련 검토·편집 요청에서 Codex Studio의 SKILL.md를 읽고 사용하도록 Codex 지침 추가 |
+| `CLAUDE.md` | 같은 스킬과 저장된 수정 요청·작업 기록을 사용하도록 Claude 지침 추가 |
+
+기존 지침은 보존하고 Studio 안내 구역을 추가·갱신합니다. 파일이 없으면 생성합니다. Codex용 `AGENTS.override.md`가 있으면 그 파일에도 안내를 반영합니다. 사용자 홈의 전역 지침은 수정하지 않습니다.
+
+업데이트도 같은 설치 명령을 사용합니다. 설치 후 해당 프로젝트에서 새 대화를 시작하세요.
 
 ## 이렇게 쓰세요
 
