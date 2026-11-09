@@ -8,7 +8,7 @@ const node = (tag, text) => {
 };
 const token = document.querySelector('meta[name=artifact-token]').content;
 const roleNames = {human:'사용자', codex:'Codex', claude:'Claude'};
-let board, artifact, review, cues = [], player, tracks = [], bed, overlay, activeCue = -2;
+let board, artifact, review, cues = [], player, tracks = [], bed, overlay, activeCue = -2, audioMixer;
 let fps = 30, dirty = false, saving = false, switching = false, connected = false;
 const status = text => { $('status').textContent = text; };
 const guard = callback => async (...args) => {
@@ -44,7 +44,7 @@ function showPage(name) {
   }
   if (name !== 'versions') $('version-detail').querySelector('video')?.pause();
   $('request-unsaved').hidden = !dirty;
-  if (!editing) { player?.pause(); showRequests(); }
+  if (!editing) { pausePlayer(); showRequests(); }
 }
 function setOptions(select, rows, placeholder) {
   const before = select.value;
@@ -77,7 +77,8 @@ async function openArtifact(id) {
   switching = true;
   try {
     const result = await request(route(id));
-    player?.pause();
+    pausePlayer();
+    audioMixer?.dispose(); audioMixer = null;
     pauseTracks();
     player = null; bed = null; tracks = []; activeCue = -2;
     ({artifact, cues, review} = result);
@@ -131,7 +132,7 @@ function maxFrame() {
 }
 function seek(frame) {
   if (!player || !Number.isFinite(player.duration)) return;
-  player.pause();
+  pausePlayer();
   player.currentTime = Math.min(player.duration, (Math.min(maxFrame(), Math.max(0,frame)) + .2) / fps);
   drawVideo();
 }
@@ -163,6 +164,7 @@ function setMusic() {
     const level = review[field] ?? 100;
     const track = tracks.find(item => item.dataset.layer === field);
     if (track) track.volume = level / 100;
+    audioMixer?.setLevel(field,level);
     if (field === 'voice' && player && !artifact.voice) player.volume = level / 100;
     $(field).value = level;
     $(field).disabled = !available;
@@ -178,6 +180,7 @@ function setMusic() {
     ? '원본 소리에는 여러 소리가 함께 들어 있을 수 있습니다. 개별 조절에는 분리된 원본 음원이 필요합니다.'
     : missing.length ? missing.join(' · ') + ' 원본을 연결하면 개별 조절할 수 있습니다.' : '나레이션 · 배경음악 · 효과음이 각각 연결되어 있습니다.';
 }
+function pausePlayer() { audioMixer?.pause(); player?.pause(); }
 function pauseTracks() { tracks.forEach(track => track.pause()); }
 function syncTracks(force = false) {
   tracks.forEach(track => {
@@ -206,7 +209,9 @@ function mountVideo(preview, id) {
   overlay = node('div');
   overlay.className = 'overlay';
   preview.append(video, mask, overlay);
+  if (artifact.audio_preview) audioMixer = new StudioAudioMixer(video,artifact.audio_preview,review,status);
   for (const field of ['voice','music','effects']) {
+    if (audioMixer) break;
     if (!artifact[field]) continue;
     const audio = node('audio');
     audio.preload = 'metadata';
@@ -233,7 +238,7 @@ function mountVideo(preview, id) {
   video.onerror = current(() => status('영상 파일을 재생할 수 없습니다. 브라우저 코덱과 등록 경로를 확인하세요.'));
   for (const name of ['scrub','play','back','next']) $(name).disabled = true;
   $('play').textContent = '재생';
-  video.src = '/media/' + id + '/file';
+  video.src = artifact.preview_video || '/media/' + id + '/file';
   if (video.requestVideoFrameCallback) {
     const refreshFrame = () => {
       if (player !== video) return;
@@ -302,6 +307,7 @@ $('request-state').onchange = showRequests;
 
 $('play').onclick = guard(async () => {
   if (!player) return;
+  if (audioMixer) return !player.paused || audioMixer.busy ? audioMixer.pause() : audioMixer.play();
   if (!player.paused) return player.pause();
   syncTracks(true);
   playTracks();
@@ -342,7 +348,7 @@ $('copy-sync').onclick = guard(async () => {
 $('approve-script').onclick = guard(async () => {
   if (dirty || saving) return;
   saving = true;
-  player?.pause();
+  pausePlayer();
   showScript();
   try {
     const stored = await request(route(artifact.id) + '/approve-script', {revision:review.revision});
@@ -356,7 +362,7 @@ $('approve-script').onclick = guard(async () => {
     showScript();
   }
 });
-$('caption').onfocus = () => player?.pause();
+$('caption').onfocus = () => pausePlayer();
 $('caption').oninput = () => {
   if (activeCue >= 0) {
     review.captions[activeCue] = $('caption').value;
@@ -374,12 +380,12 @@ $('reset-caption').onclick = () => {
     changed();
   }
 };
-$('note').onfocus = () => player?.pause();
+$('note').onfocus = () => pausePlayer();
 $('add-note').onclick = () => {
   const text = $('note').value.trim();
   if (!text) return;
   if (player && !Number.isFinite(player.duration)) return status('영상이 열린 후 메모를 추가하세요.');
-  player?.pause();
+  pausePlayer();
   const note = {id:crypto.randomUUID(), frame:frameNow(), author:'human', text};
   if (artifact.kind === 'image' && imageSelection) note.selection = structuredClone(imageSelection);
   review.notes.push(note);
