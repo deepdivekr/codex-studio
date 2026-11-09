@@ -54,6 +54,10 @@ class OneLineInstall(unittest.TestCase):
                                               cwd=self.project, encoding='utf-8')
             self.assertEqual(json.loads(result), [])
         self.assertTrue(instructions['AGENTS.md'].startswith('# 기존 지침\r\n'.encode()))
+        for content in instructions.values():
+            self.assertIn(b'references/mobile-sites.md', content)
+            self.assertIn(b'Do not ask the user to repeat a Sites prompt', content)
+            self.assertIn(b'Honor explicit local-only/offline requests', content)
         self.assertFalse((self.project / 'private.mp4').exists())
         review = self.project / '.codex-artifacts/reviews/photo.json'
         review.parent.mkdir(parents=True)

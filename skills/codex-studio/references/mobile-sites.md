@@ -1,12 +1,24 @@
 # Mobile and remote review with Sites
 
-Read when the user wants to open Studio on a phone or another computer, or explicitly asks for Sites hosting. A responsive page at `localhost` or `127.0.0.1` is still reachable only from its host. WSL loopback forwarding does not make it a mobile URL.
+Read whenever the user asks to open the Studio editor. Default to the available Sites workflow so the same editor can open on desktop and mobile. A responsive page at `localhost` or `127.0.0.1` is still reachable only from its host. WSL loopback forwarding does not make it a mobile URL.
 
 ## Choose the destination
 
-- Same computer: keep the existing `artifact.py open ID` workflow.
-- Another device through Sites: use the available Sites skill and tools to build and deploy an owner-private review site. Keep an existing Site's identity and audience. Open the literal successful HTTPS deployment URL; explain that the owner signs in with the same ChatGPT account.
-- If Sites is unavailable, say which capability is missing. Do not present a local URL as remote access, expose the local server on all interfaces, or create a tunnel as an unrequested substitute.
+- Explicit local-only/offline or no-upload instruction: use `artifact.py open ID` without Sites publication.
+- Otherwise discover Sites in the current session and read its skill. Continue to private hosting automatically; the user does not need to ask for Sites separately. Native tool approvals still apply. Keep an existing Site's identity and audience; never broaden access because the editor was reopened.
+- If Sites is unavailable, say which capability is missing and open the local editor. Do not label it mobile access. If an available Sites operation fails, preserve its identity and records, report the failure and offer the usable local editor; never claim publication succeeded or create duplicate Sites to bypass the error.
+
+## Carry the opening request into Sites
+
+The installer puts this route in the target repository's AGENTS.md and CLAUDE.md. The active agent executes it in the same conversation; there is no second prompt to send or background model session to start.
+
+Use the following internal task brief with the real selected project values. Do not ask the user to copy it:
+
+> Open the selected Studio artifact as an editor. Resolve its source path, artifact ID, current revision, captions and saved review requests. Reuse its recorded Sites project when present; otherwise create an owner-private Site following the available Sites skill. Include only the selected review assets, durable authenticated cloud saving, revision-conflict handling, mobile layout and UTF-8 text. Preserve existing unsaved edits and completed revisions. Verify the deployed result and open its actual HTTPS URL. Keep media rendering in the existing local production environment.
+
+Before creation, inspect the selected project's existing Site metadata and handoff records. Record the artifact-to-Site association under `.codex-artifacts/sites/<artifact-id>.json` using the registered safe artifact ID: `artifact_id`, `source_revision`, `project_id`, `checkout_path`, and verified `url` when available. Never store credentials there. Persist the project ID immediately after creation, before publication, so an interrupted attempt can resume. Read and verify the association with Sites tools on later opens; do not create a new Site on every request. An unchanged, successfully deployed matching revision can be reopened without republishing. Pending or changed work resumes through the Sites skill, preserving cloud edits.
+
+Return the literal successful HTTPS URL and the same-account sign-in requirement. A saved metadata URL alone is not proof of a current successful deployment.
 
 This reference is a hosting workflow, not an implemented `artifact.py deploy` command. Sites requires its own plugin/account. Installing Codex Studio alone does not install Sites or provision hosting.
 

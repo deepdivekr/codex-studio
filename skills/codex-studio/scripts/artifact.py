@@ -40,7 +40,11 @@ def handoff_instructions(path, role, script):
         f'For requests to open an artifact or review/edit a video, HTML, or image in an artifact workspace '
         f'(for example, "이 영상 편집하게 아티펙트 생성해줘"), read `{Path(script).parents[1].as_posix()}/SKILL.md` '
         f'and use its workflow. No special slash command is required. '
-        f'Use `open ID` to obtain a live local HTTP URL; never open the skill\'s HTML file directly.'.encode(),
+        f'For an editor-opening request, automatically follow `{Path(script).parents[1].as_posix()}/references/mobile-sites.md`: '
+        f'when Sites is available, reuse the selected artifact\'s existing Site or deploy an owner-private editor '
+        f'with durable cloud saves, then open the verified HTTPS URL. Do not ask the user to repeat a Sites prompt. '
+        f'Honor explicit local-only/offline requests. If Sites is unavailable, explain that and use `open ID` '
+        f'for the local editor. Never open the skill\'s HTML file directly.'.encode(),
         f'When operating {agent}, check this checkout\'s inbox at the start of work, before editing:'.encode(),
         f'`python3 {script} handoff list --to {role} --open`'.encode(),
         f'`python3 {script} requests list --open`'.encode(),
