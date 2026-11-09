@@ -37,6 +37,18 @@ irm https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/in
 | 이미지 | 지점·사각형 영역 지정, 댓글, 수정 결과 확인 |
 | HTML | 미리보기와 수정 요청 |
 
-설치와 작업 기록은 해당 프로젝트에 저장됩니다. 화면은 모바일 크기에도 맞춰지며, **현재 편집 주소는 실행 중인 PC 전용**입니다.
+설치와 작업 기록은 해당 프로젝트에 저장됩니다. 기본 편집 주소는 실행 중인 PC 전용입니다. **“휴대폰에서도 열리게 Sites로 배포해줘”**라고 요청하면, 에이전트가 사용 가능한 Sites 플러그인으로 비공개 HTTPS 편집실과 클라우드 저장을 구성합니다. 같은 ChatGPT 계정으로 로그인해 사용합니다. Studio 자체에 호스팅 서버나 Sites 계정이 포함되지는 않습니다. [모바일 연결 방식](skills/codex-studio/references/mobile-sites.md)
+
+## 영상 제작 도구 확장
+
+**“Remotion 스킬 팩 추가해줘”**, **“PixiJS와 전환 효과 스킬 설치해줘”**처럼 요청하세요. 검토한 공식 스킬을 해당 프로젝트의 Codex·Claude에 선택 설치합니다.
+
+`remotion` · `hyperframes` · `pixijs` · `motion` · `gl-transitions` · `storyboarding` · `anatomy-reveal` · `colorfigures`
+
+기존 제작 환경에서 쓰던 **스토리보드 영상·사물 분해 애니메이션·Colorfigures 도해**도 다른 사용자가 설치할 수 있습니다. Colorfigures는 라이선스를 포함한 설치본을 내장했고, 나머지 팩은 검토한 공개 원본을 내려받습니다. **“스토리보드와 분해 애니메이션 번들 설치해줘”**라고 요청하면 됩니다. [기존 스킬 선별 결과와 실행 조건](skills/codex-studio/references/local-video-skills.md)
+
+검토한 커밋·파일 해시를 확인하고 설치하며, 기존 변경은 보호합니다. 영상 엔진·모델·앱·MCP는 따로 설정하므로 기본 설치가 무거워지지 않습니다. 설치 후 새 대화를 시작하세요.
+
+[30개 프로젝트 개별 검토표](skills/codex-studio/references/video-tools-audit.md) · [선택 설치 명령과 도구 선택](skills/codex-studio/references/video-toolkit.md)
 
 [상세 사용법·추가 기능·개발 안내](docs/advanced.md) · [MIT License](LICENSE)

@@ -47,6 +47,15 @@ class OneLineInstall(unittest.TestCase):
             skill = self.project / client / 'skills/codex-studio'
             self.assertTrue((skill / 'SKILL.md').is_file())
             self.assertTrue((skill / 'references/image-edits.md').is_file())
+            catalog = subprocess.check_output([sys.executable, '-X', 'utf8', str(skill / 'scripts/toolkit.py'), 'list'],
+                                              cwd=self.project, encoding='utf-8')
+            self.assertEqual(len(json.loads(catalog)['projects']), 30)
+            self.assertEqual(len(json.loads(catalog)['packs']), 8)
+            bundled = subprocess.check_output([sys.executable, '-X', 'utf8', str(skill / 'scripts/toolkit.py'),
+                                               'install', 'colorfigures', '--for', 'both'],
+                                              cwd=self.project, encoding='utf-8')
+            self.assertIn(json.loads(bundled)[0]['status'], ('installed', 'already_installed'))
+            self.assertTrue((skill / 'references/mobile-sites.md').is_file())
             result = subprocess.check_output([sys.executable, str(skill / 'scripts/artifact.py'), 'list'],
                                               cwd=self.project, encoding='utf-8')
             self.assertEqual(json.loads(result), [])

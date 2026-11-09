@@ -72,6 +72,9 @@ def main(argv=None):
     parser.add_argument('--for', dest='agent', choices=('both', 'codex', 'claude'), default='both')
     parser.add_argument('--ref', default='main', help='GitHub branch, tag or commit to install')
     parser.add_argument('--archive', type=Path, help='Use a local source ZIP instead of downloading')
+    parser.add_argument('--bundle', action='append', default=[],
+                        choices=('remotion', 'hyperframes', 'pixijs', 'motion', 'gl-transitions', 'storyboarding', 'anatomy-reveal', 'colorfigures'),
+                        help='Also install this pinned upstream skill pack (repeatable; no runtimes)')
     args = parser.parse_args(argv)
     project = args.project.expanduser().resolve(strict=True)
     if not project.is_dir():
@@ -87,6 +90,14 @@ def main(argv=None):
                                 capture_output=True, text=True, encoding='utf-8')
         if result.returncode:
             raise ValueError(result.stderr.strip() or result.stdout.strip() or 'Skill installation failed')
+        if args.bundle:
+            result = subprocess.run([sys.executable, '-X', 'utf8', str(skill / 'scripts/toolkit.py'),
+                                     '--project', str(project), 'install', *dict.fromkeys(args.bundle),
+                                     '--for', args.agent], capture_output=True, text=True, encoding='utf-8')
+            if result.returncode:
+                raise ValueError('Studio was installed, but an optional bundle did not complete: '
+                                 + (result.stderr.strip() or result.stdout.strip()))
+            print(result.stdout, end='')
     clients = {'both': 'Codex · Claude', 'codex': 'Codex', 'claude': 'Claude'}[args.agent]
     print(f'설치 완료 · {clients}\n프로젝트: {project}\n새 대화에서 “스튜디오 열어줘”라고 요청하세요.\n업데이트도 같은 설치 명령을 사용하면 됩니다.')
 

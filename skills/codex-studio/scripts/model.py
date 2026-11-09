@@ -158,8 +158,17 @@ class Project:
 
     def storage(self, *parts):
         path = self.data.joinpath(*parts)
-        if not path.resolve().is_relative_to(self.data):
-            raise ValueError('Project record resolves outside the records directory')
+        resolved = path.resolve()
+        # A concurrently locked file can retain Win32's extended-length prefix
+        # in Python 3.10 even when its parent resolved without that prefix.
+        if os.name == 'nt':
+            value = str(resolved)
+            if value.startswith('\\\\?\\UNC\\'):
+                resolved = Path('\\\\' + value[8:])
+            elif value.startswith('\\\\?\\') and re.match(r'[A-Za-z]:\\', value[4:]):
+                resolved = Path(value[4:])
+        if not resolved.is_relative_to(self.data):
+            raise ValueError(f'Project record resolves outside the records directory: {resolved} (expected {self.data})')
         return path
 
     def init(self):
