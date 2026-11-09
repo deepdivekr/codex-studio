@@ -15,13 +15,25 @@ const guard = callback => async (...args) => {
   try { await callback(...args); } catch (error) { status(error.message); }
 };
 async function request(path, data) {
-  const response = await fetch(path, data === undefined ? {} : {
-    method:'POST', headers:{'Content-Type':'application/json','X-Artifact-Token':token},
-    body:JSON.stringify(data)
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || '요청을 처리할 수 없습니다.');
-  return result;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(path, {signal:controller.signal, ...(data === undefined ? {} : {
+      method:'POST', headers:{'Content-Type':'application/json','X-Artifact-Token':token},
+      body:JSON.stringify(data)
+    })});
+    if (!response.headers.get('Content-Type')?.includes('application/json'))
+      throw new Error('편집 서버의 응답이 아닙니다. 대화에서 편집실을 다시 열어달라고 요청하세요.');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '요청을 처리할 수 없습니다.');
+    return result;
+  } catch (error) {
+    if (error.name === 'AbortError' || error instanceof TypeError)
+      throw new Error(data === undefined
+        ? '편집 서버에 연결하지 못했습니다. 서버가 켜져 있는지 확인하거나 대화에서 편집실을 다시 열어달라고 요청하세요.'
+        : '저장 결과를 확인하지 못했습니다. 현재 내용을 보관하고 저장된 기록을 확인한 뒤 다시 시도하세요.');
+    throw error;
+  } finally { clearTimeout(timeout); }
 }
 function route(id) { return '/api/artifacts/' + encodeURIComponent(id); }
 function showPage(name) {
@@ -435,12 +447,33 @@ $('handoff-form').onsubmit = guard(async event => {
   } finally { submit.disabled = false; }
 });
 window.addEventListener('beforeunload', event => { if (dirty) event.preventDefault(); });
-guard(async () => {
-  const actor = localStorage.getItem('artifact-role');
-  if (Object.hasOwn(roleNames, actor)) $('role').value = actor;
-  resetReply();
-  await refresh();
-  const requested = new URLSearchParams(location.search).get('artifact');
-  if (board.artifacts.length) await openArtifact(board.artifacts.some(x=>x.id===requested) ? requested : $('artifacts').value);
-  else status('저장소 연결됨');
-})();
+async function connect() {
+  const directFile = location.protocol === 'file:';
+  $('connection-help').hidden = true;
+  document.querySelector('nav').hidden = true;
+  document.querySelector('main').hidden = true;
+  $('retry-connection').disabled = true;
+  $('retry-connection').hidden = directFile;
+  status('편집실에 연결하는 중…');
+  try {
+    if (directFile) throw new Error('HTML 파일을 직접 열었습니다. 대화에서 “이 프로젝트의 아티펙트 편집실 열어줘”라고 요청하세요. 실행 중인 편집실의 http://127.0.0.1:포트/ 주소로 연결합니다.');
+    let actor;
+    try { actor = localStorage.getItem('artifact-role'); } catch (_) { /* Browser storage is optional. */ }
+    if (Object.hasOwn(roleNames, actor)) $('role').value = actor;
+    resetReply();
+    await refresh();
+    const requested = new URLSearchParams(location.search).get('artifact');
+    if (requested && !board.artifacts.some(x=>x.id===requested))
+      throw new Error('이 편집실에 요청한 아티펙트가 없습니다. 대화에서 해당 파일의 편집실을 다시 열어달라고 요청하세요.');
+    if (board.artifacts.length) await openArtifact(requested || $('artifacts').value);
+    else status('편집실 연결됨');
+    document.querySelector('nav').hidden = false;
+    document.querySelector('main').hidden = false;
+  } catch (error) {
+    status(directFile ? '로컬 편집 주소로 열어주세요.' : '편집실에 연결할 수 없습니다.');
+    $('connection-message').textContent = error.message;
+    $('connection-help').hidden = false;
+  } finally { $('retry-connection').disabled = false; }
+}
+$('retry-connection').onclick = connect;
+connect();

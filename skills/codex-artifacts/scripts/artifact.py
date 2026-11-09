@@ -13,7 +13,7 @@ import tempfile
 
 from media import destination, edited_cues, format_srt, load_cues, render, require_caption_export
 from model import Conflict, Project, ROLES, project_root
-from server import serve, server_status
+from server import open_workspace, serve, server_status
 from sync import draft_payload, prepare, render_synced, script_draft
 
 SKILL = Path(__file__).resolve().parents[1]
@@ -29,6 +29,10 @@ def handoff_instructions(path, role, script):
     block = newline.join([
         HANDOFF_START,
         f'## Codex Artifacts handoff for {agent}'.encode(),
+        f'For requests to open an artifact or review/edit a video, HTML, or image in an artifact workspace '
+        f'(for example, "이 영상 편집하게 아티펙트 생성해줘"), read `{Path(script).parents[1].as_posix()}/SKILL.md` '
+        f'and use its workflow. No special slash command is required. '
+        f'Use `open ID` to obtain a live local HTTP URL; never open the skill\'s HTML file directly.'.encode(),
         f'When operating {agent}, check this checkout\'s inbox at the start of work, before editing:'.encode(),
         f'`python3 {script} handoff list --to {role} --open`'.encode(),
         b'Run from the repository root. On native Windows, use `python -X utf8` in place of `python3`.',
@@ -116,6 +120,9 @@ def parser():
     setup.add_argument('--upgrade', action='store_true')
     web = commands.add_parser('serve')
     web.add_argument('--port', type=int, default=0)
+    launch = commands.add_parser('open', help='Start or reuse the local server and return the editor URL')
+    launch.add_argument('id', nargs='?', help='Registered artifact to select')
+    launch.add_argument('--port', type=int, default=0)
     add = commands.add_parser('add')
     add.add_argument('kind', choices=('video', 'html', 'image'))
     add.add_argument('id')
@@ -196,6 +203,8 @@ def run(args):
         return server_status(project)
     if command == 'serve':
         return serve(project, args.port)
+    if command == 'open':
+        return open_workspace(project, args.id, args.port)
     if command == 'add':
         return project.add(vars(args))
     if command == 'list':

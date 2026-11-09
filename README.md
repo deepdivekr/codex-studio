@@ -9,14 +9,18 @@ A local video, HTML and image review board with a shared handoff log for Codex a
 ```bash
 python3 skills/codex-artifacts/scripts/artifact.py --project /path/to/project install
 cd /path/to/project
-python3 .agents/skills/codex-artifacts/scripts/artifact.py serve --port 0
+python3 .agents/skills/codex-artifacts/scripts/artifact.py open
 ```
 
 Codex에서는 `$codex-artifacts`, Claude Code에서는 `/codex-artifacts`로 호출합니다. 화면 이름은 **/codex-아티펙트**입니다. 스킬은 각각 `.agents/skills/`와 `.claude/skills/`에 설치합니다. [Codex 스킬](https://developers.openai.com/codex/skills) · [Claude Code 스킬](https://code.claude.com/docs/en/skills)
 
 설치하면 프로젝트의 `AGENTS.md`와 `CLAUDE.md`에 각 도구의 인계 확인 절차가 추가됩니다. 기존 프로젝트 지침은 유지됩니다. 이전 버전에서 업데이트하려면 설치 명령에 `--upgrade`를 붙이고 같은 프로젝트 폴더에서 새 세션을 여세요. [Codex 프로젝트 지침](https://developers.openai.com/codex/guides/agents-md) · [Claude Code 프로젝트 지침](https://code.claude.com/docs/en/memory)
 
-출력된 `http://127.0.0.1:<port>/`를 Codex 데스크톱의 인앱 Browser 주소창 또는 일반 브라우저에 엽니다. 같은 PC에서 WSL을 쓰면 Windows 브라우저에서 WSL localhost 연결을 사용합니다. 원격 호스트는 포트 전달이 필요합니다. [Codex Browser 안내](https://learn.chatgpt.com/docs/browser)
+**설치 형태는 스킬 + 로컬 편집 서버입니다. MCP 설정은 필요하지 않습니다.** 설치 후 같은 프로젝트에서 “이 영상 편집하게 아티펙트 생성해줘”, “자막 수정할 화면 열어줘”, “이 HTML 아티펙트로 보여줘”처럼 요청하세요. 에이전트가 파일을 등록하고 서버를 켜거나 재사용한 뒤 해당 아티펙트 주소를 엽니다. 요청과 스킬 설명을 맞춰 선택하는 방식이며, 대상이 여러 개면 파일을 확인합니다. [자연어로 스킬 선택](https://learn.chatgpt.com/docs/build-skills#how-chatgpt-and-codex-use-skills)
+
+`open ID`는 준비된 `http://127.0.0.1:<port>/?artifact=ID`를 반환합니다. Codex 데스크톱에서는 에이전트가 인앱 Browser로 열고, 브라우저 열기 도구가 없는 환경에서는 클릭할 링크를 제공합니다. `assets/index.html`을 직접 열면 저장·불러오기 기능에 연결할 수 없습니다. 같은 PC에서 WSL을 쓰면 Windows 브라우저에서 WSL localhost 연결을 사용합니다. 원격 호스트는 포트 전달이 필요합니다. [Codex Browser 안내](https://learn.chatgpt.com/docs/browser)
+
+서버는 브라우저를 닫아도 계속 실행되며 프로젝트당 하나를 재사용합니다. 주소와 PID는 `status`, 실행 로그는 `.codex-artifacts/runtime/server.log`에서 확인합니다. 직접 프로세스를 관리하려면 기존 `serve --port 0` 명령을 사용하고 Ctrl+C로 종료할 수 있습니다. 목록은 등록된 아티펙트 기록만 읽으며 저장소 전체를 스캔하지 않습니다. 연결 실패는 10초 안에 안내하고 다시 연결할 수 있습니다.
 
 ## 아티펙트 검토
 

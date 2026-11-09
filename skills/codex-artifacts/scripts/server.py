@@ -6,6 +6,9 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import secrets
+import subprocess
+import sys
+import time
 from urllib.parse import quote, unquote, urlsplit
 
 from media import edited_cues, format_srt, load_cues, require_caption_export
@@ -249,3 +252,35 @@ def serve(project, port):
                 pass
             finally:
                 marker.unlink(missing_ok=True)
+
+
+def open_workspace(project, key=None, port=0):
+    """Return a ready local URL, reusing one server per checkout."""
+    if key is not None:
+        project.artifact(key)
+    with project.lock('runtime/launch.lock'):
+        running = server_status(project)
+        if not running['running']:
+            log = project.storage('runtime', 'server.log')
+            options = ({'creationflags': subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS}
+                       if os.name == 'nt' else {'start_new_session': True})
+            with log.open('ab') as output:
+                child = subprocess.Popen(
+                    [sys.executable, '-u', str(Path(__file__).with_name('artifact.py')),
+                     '--project', str(project.root), 'serve', '--port', str(port)],
+                    cwd=project.root, stdin=subprocess.DEVNULL, stdout=output, stderr=output,
+                    close_fds=True, **options)
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline:
+                running = server_status(project)
+                if running['running']:
+                    break
+                if child.poll() is not None:
+                    break
+                time.sleep(.1)
+            if not running['running']:
+                if child.poll() is None:
+                    child.terminate()
+                    child.wait(timeout=5)
+                raise ValueError(f'Could not start the artifact server. See {log}')
+    return running['url'] + ('?artifact=' + quote(key) if key else '')

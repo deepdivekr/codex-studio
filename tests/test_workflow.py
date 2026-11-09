@@ -1,12 +1,15 @@
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
 from pathlib import Path
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from threading import Thread
 import unittest
 from urllib.error import HTTPError
@@ -16,7 +19,7 @@ SKILL = Path(__file__).resolve().parents[1] / 'skills/codex-artifacts'
 sys.path.insert(0, str(SKILL / 'scripts'))
 from media import load_cues, render
 from model import Conflict, Project
-from server import Server
+from server import Server, server_status
 
 
 class Workflow(unittest.TestCase):
@@ -34,7 +37,34 @@ class Workflow(unittest.TestCase):
     def cli(self, *args):
         result = subprocess.check_output([sys.executable, str(SKILL / 'scripts/artifact.py'),
                                           '--project', str(self.root), *args], encoding='utf-8')
-        return result.strip() if args[0] in ("init", "export-srt", "render") else json.loads(result)
+        return result.strip() if args[0] in ("init", "export-srt", "render", "open") else json.loads(result)
+
+    def test_open_starts_once_and_returns_selected_artifact_url(self):
+        try:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                links = list(executor.map(lambda _: self.cli('open', 'design'), range(2)))
+            self.assertEqual(links[0], links[1])
+            self.assertTrue(links[0].endswith('/?artifact=design'))
+            info = self.cli('status')
+            self.assertTrue(info['running'])
+            with urlopen(info['url'] + 'api/artifacts/design', timeout=5) as response:
+                self.assertEqual(json.load(response)['artifact']['id'], 'design')
+            self.assertEqual(self.cli('open'), info['url'])
+            self.assertEqual(self.cli('status')['instance'], info['instance'])
+        finally:
+            info = server_status(self.project)
+            if info['running']:
+                os.kill(info['pid'], signal.SIGTERM)
+                for _ in range(50):
+                    if not server_status(self.project)['running']:
+                        break
+                    time.sleep(.1)
+
+    def test_open_unknown_artifact_does_not_start_server(self):
+        from server import open_workspace
+        with self.assertRaises(FileNotFoundError):
+            open_workspace(self.project, 'missing')
+        self.assertFalse(server_status(self.project)['running'])
 
     def test_cli_agents_read_the_same_handoff_and_reply(self):
         if shutil.which("git"):
