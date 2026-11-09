@@ -93,6 +93,8 @@ async function openArtifact(id) {
     preview.className = 'preview';
     $('screen').append(preview);
     const isVideo = artifact.kind === 'video';
+    $('editor-tools').hidden = !isVideo;
+    document.querySelector('[data-editor-target="subtitle-box"]').disabled = !cues.length;
     imageSelection = null; imageStage = null;
     $('image-tools').hidden = artifact.kind !== 'image';
     $('transport').hidden = !isVideo;
@@ -224,20 +226,20 @@ function mountVideo(preview, id) {
   const current = fn => () => { if (player === video) fn(); };
   video.onloadedmetadata = current(() => {
     $('scrub').max = video.duration;
-    for (const name of ['scrub','play','back','next']) $(name).disabled = false;
+    for (const name of ['scrub','play','audio-play','back','next']) $(name).disabled = false;
     drawVideo();
   });
   video.onplaying = current(() => {
-    $('play').textContent = '일시정지'; syncTracks(true); playTracks();
+    $('play').textContent = $('audio-play').textContent = '일시정지'; syncTracks(true); playTracks();
   });
-  video.onpause = current(() => { pauseTracks(); $('play').textContent = '재생'; drawVideo(); });
+  video.onpause = current(() => { pauseTracks(); $('play').textContent = $('audio-play').textContent = '재생'; drawVideo(); });
   video.onwaiting = current(pauseTracks);
   video.onseeking = current(pauseTracks);
   video.onseeked = current(() => { syncTracks(true); drawVideo(); if (!video.paused) playTracks(); });
   video.ontimeupdate = current(() => { drawVideo(); if (!video.paused && !video.seeking) syncTracks(); });
   video.onerror = current(() => status('영상 파일을 재생할 수 없습니다. 브라우저 코덱과 등록 경로를 확인하세요.'));
-  for (const name of ['scrub','play','back','next']) $(name).disabled = true;
-  $('play').textContent = '재생';
+  for (const name of ['scrub','play','audio-play','back','next']) $(name).disabled = true;
+  $('play').textContent = $('audio-play').textContent = '재생';
   video.src = artifact.preview_video || '/media/' + id + '/file';
   if (video.requestVideoFrameCallback) {
     const refreshFrame = () => {
@@ -313,6 +315,13 @@ $('play').onclick = guard(async () => {
   playTracks();
   try { await player.play(); } catch (error) { pauseTracks(); throw error; }
 });
+$('audio-play').onclick = () => $('play').click();
+for (const button of document.querySelectorAll('[data-editor-target]')) button.onclick = () => {
+  const target = $(button.dataset.editorTarget);
+  if (target.hidden) return;
+  target.scrollIntoView({block:'start'});
+  target.focus({preventScroll:true});
+};
 $('back').onclick = () => seek(frameNow() - 1);
 $('next').onclick = () => seek(frameNow() + 1);
 $('scrub').oninput = event => seek(Math.round(Number(event.target.value) * fps));

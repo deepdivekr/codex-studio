@@ -37,6 +37,11 @@
     </div>
     <p id="empty" class="quiet" hidden>등록된 작업물이 없습니다. 대화에서 “이 영상 편집할 스튜디오 열어줘”처럼 요청하세요.</p>
     <div id="workspace" class="split" hidden>
+      <div id="editor-tools" class="editor-tools" role="group" aria-label="편집 도구 바로가기" hidden>
+        <button type="button" data-editor-target="audio-controls" aria-controls="audio-controls">소리 조절</button>
+        <button type="button" data-editor-target="subtitle-box" aria-controls="subtitle-box">자막·대본</button>
+        <button type="button" data-editor-target="notes-panel" aria-controls="notes-panel">프레임 메모</button>
+      </div>
       <div class="stack">
         <div id="screen"></div>
         <section id="image-tools" class="stack" aria-label="이미지 수정 영역" hidden>
@@ -53,8 +58,8 @@
           <label for="scrub" class="quiet">재생 위치</label><input type="range" id="scrub" min="0" step="any" value="0">
           <div class="row"><button id="play">재생</button><button id="back" aria-label="이전 프레임">−1프레임</button><button id="next" aria-label="다음 프레임">+1프레임</button><output id="time">00:00:00:00</output></div>
           <form id="jump-form" class="row"><label>시각 <input id="jump" class="short" placeholder="03:21.185"></label><button>이동</button></form>
-          <section class="audio-mixer stack" aria-label="오디오 레이어">
-            <h2>오디오 레이어</h2>
+          <section id="audio-controls" class="audio-mixer stack" aria-label="소리 조절" tabindex="-1">
+            <div class="row spread"><h2>소리 조절</h2><button id="audio-play" type="button" disabled>재생</button></div>
             <p class="quiet">재생 중 바로 반영됩니다. 편집안 저장 후 내보내기에도 적용됩니다.</p>
             <div id="voice-control" class="audio-row"><label id="voice-label" for="voice">나레이션</label><input id="voice" aria-label="나레이션 볼륨" type="range" min="0" max="100"><output id="voice-value"></output><button id="voice-mute" type="button" aria-pressed="false">음소거</button></div>
             <div id="music-control" class="audio-row"><label for="music">배경음악</label><input id="music" aria-label="배경음악 볼륨" type="range" min="0" max="100"><output id="music-value"></output><button id="music-mute" type="button" aria-pressed="false">음소거</button></div>
@@ -64,7 +69,7 @@
         </div>
       </div>
       <aside class="stack">
-        <div id="subtitle-box" class="stack" hidden>
+        <div id="subtitle-box" class="stack" tabindex="-1" hidden>
           <h2>현재 자막</h2><label id="cue-label" for="caption" class="quiet"></label>
           <textarea id="caption" maxlength="1000"></textarea>
           <button id="reset-caption" class="ghost">이 자막 원문으로</button>
@@ -77,7 +82,7 @@
             <button id="copy-sync" type="button" class="ghost" hidden>싱크 작업 요청 복사</button>
           </details>
         </div>
-        <div class="stack">
+        <div id="notes-panel" class="stack" tabindex="-1">
           <h2 id="note-title">수정 요청</h2><label for="note" class="visually-hidden">수정 요청 내용</label>
           <textarea id="note" maxlength="2000" placeholder="어떤 부분을 어떻게 바꿀지 적어주세요"></textarea>
           <button id="add-note">수정 요청 추가</button>
