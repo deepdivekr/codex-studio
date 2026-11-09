@@ -1,6 +1,6 @@
 'use strict';
 
-let imageSelection = null, imageStage = null, imageMode = 'rect';
+let imageSelection = null, imageStage = null, imageMode = null;
 
 function selectionLabel(selection) {
   if (!selection) return '이미지 전체';
@@ -51,15 +51,28 @@ function mountImage(preview, id) {
       y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height))};
   };
   function mode(value) {
+    if (drag) {
+      selectImageRegion(drag.before);
+      if (stage.hasPointerCapture(drag.pointer)) stage.releasePointerCapture(drag.pointer);
+      drag = null;
+    }
     imageMode = value;
-    for (const kind of ['rect','point']) $('image-' + kind).setAttribute('aria-pressed', kind === value);
+    stage.dataset.mode = value;
+    for (const kind of ['view','rect','point']) $('image-' + kind).setAttribute('aria-pressed', kind === value);
+    $('image-help').textContent = {
+      view:'사진 위에서도 스크롤할 수 있습니다. 수정할 부분은 영역 지정이나 지점 표시를 눌러 선택하세요.',
+      rect:'바꿀 부분을 드래그한 뒤 댓글을 적어주세요. 사진 위에서 스크롤하려면 보기를 누르세요.',
+      point:'바꿀 지점을 누른 뒤 댓글을 적어주세요. 객체의 윤곽을 자동으로 선택하지는 않습니다.'
+    }[value];
   }
+  $('image-view').onclick = () => mode('view');
   $('image-rect').onclick = () => mode('rect');
   $('image-point').onclick = () => mode('point');
   $('image-clear').onclick = () => selectImageRegion(null);
-  mode(imageMode); selectImageRegion(null);
+  mode(imageMode || (matchMedia('(pointer:coarse), (max-width:780px)').matches ? 'view' : 'rect'));
+  selectImageRegion(null);
   stage.onpointerdown = event => {
-    if (!ready || event.button !== 0 || !event.isPrimary) return;
+    if (!ready || imageMode === 'view' || event.button !== 0 || !event.isPrimary) return;
     event.preventDefault(); stage.focus(); stage.setPointerCapture(event.pointerId);
     const p = position(event);
     drag = {...p, pointer:event.pointerId, before:imageSelection};
@@ -84,6 +97,7 @@ function mountImage(preview, id) {
   stage.onkeydown = event => {
     if (!ready) return;
     if (event.key === 'Escape') { event.preventDefault(); selectImageRegion(null); }
+    else if (imageMode === 'view') return;
     else if (event.key === 'Enter') { event.preventDefault(); selectImageRegion(shape(imageMode,.375,.375,.25,.25)); }
     else if (imageSelection && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)) {
       event.preventDefault();
