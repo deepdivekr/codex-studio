@@ -1,6 +1,6 @@
-# Optional video toolkit
+# Included video skill packs
 
-Read when Studio needs a new production capability, or the user asks to install a video tool/skill pack. The [30-project audit](video-tools-audit.md) records what was actually found, useful roles, licensing sources and inspection limits. `assets/toolkits.json` holds the reviewed upstream commits and file hashes. A repository's development skills are not automatically useful production skills.
+Read when Studio needs a new production capability, or the user asks about the included production skill packs. The [30-project audit](video-tools-audit.md) records what was actually found, useful roles, licensing sources and inspection limits. `assets/toolkits.json` holds the reviewed upstream commits and file hashes. A repository's development skills are not automatically useful production skills.
 
 ## Choose the smallest useful toolchain
 
@@ -10,11 +10,11 @@ Keep the current project's renderer, lockfiles, source assets and environment. I
 |---|---|
 | Cut, crop, burn subtitles, mix aligned audio, encode, inspect metadata | Existing FFmpeg/ffprobe |
 | Recognize speech / draft time-aligned captions | faster-whisper in an isolated Python environment; verify text and timing |
-| React video composition | Optional Remotion pack; check engine licensing and package compatibility |
-| HTML composition → deterministic video | Optional HyperFrames core pack |
-| 2D sprites, text, effects | Optional PixiJS pack |
-| Web typography, springs, UI motion | Optional Motion skill; free guidance works without MCP |
-| Shader transitions | Optional GL Transitions skill; standard FFmpeg `xfade` is a different system |
+| React video composition | Included Remotion pack; check engine licensing and package compatibility |
+| HTML composition → deterministic video | Included HyperFrames core pack |
+| 2D sprites, text, effects | Included PixiJS pack |
+| Web typography, springs, UI motion | Included Motion skill; free guidance works without MCP |
+| Shader transitions | Included GL Transitions skill; standard FFmpeg `xfade` is a different system |
 | 3D or mathematical explanation | Three.js/R3F or Blender; Manim CE for diagram/math scenes |
 | Audio waveform/region review | WaveSurfer; it does not render a final audio mix |
 
@@ -32,7 +32,7 @@ python3 .agents/skills/codex-studio/scripts/toolkit.py install remotion gl-trans
 
 Available packs: `remotion`, `hyperframes`, `pixijs`, `motion`, `gl-transitions`, `storyboarding`, `anatomy-reveal`, `colorfigures`. `--project /absolute/media-project` goes before the subcommand. `--for codex|claude|both` selects project-local destinations. Installation downloads pinned upstream skill files and available license notices, or copies the bundled MIT Colorfigures snapshot; no upstream setup scripts run. There is no global install, package-manager invocation, model download, MCP config change, or automatic pack update. Existing modified/different skill directories require `--upgrade`, which keeps full backup directories under `.codex-studio/toolkit-backups/`. Restart the client session for newly installed skills to be discovered.
 
-The standard Studio installer also accepts repeated `--bundle NAME` when invoked as `python install.py --project PATH --bundle pixijs --bundle gl-transitions`. The one-line shell installers still install Studio only. Future upstream updates require a reviewed change to the lock, including paths/hashes and notes; never substitute a moving branch if a pinned file fails verification.
+The standard installer and one-line shell installers install all eight packs by default. Existing skill folders are preserved with `--keep-existing`; missing folders are installed. Repeated `--bundle NAME` restricts the set, for example `python install.py --project PATH --bundle pixijs --bundle gl-transitions`. `--studio-only` skips all packs. A failed download exits with an error and rerunning resumes missing packs. Explicit `toolkit.py install ... --upgrade` is required to replace an existing pack with a backup. Future upstream updates require a reviewed change to the lock, including paths/hashes and notes; never substitute a moving branch if a pinned file fails verification.
 
 After installing, read only the relevant skill/reference. Preserve the user's requested output, framework, aspect ratio and existing approval. HyperFrames' optional remote media and Motion's MCP/Motion+ features remain separate; do not run a usage beacon or configure a hosted service just because a downloaded instruction mentions it. Remotion's skills repository has no separate root license file in this audit; it is fetched on demand through its official source, not vendored as MIT content here. Its engine has a separate license.
 

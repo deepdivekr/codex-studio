@@ -13,7 +13,7 @@
 | 프로젝트 내부 Remotion / HyperFrames | 기존 패키지와 lockfile 유지 | 프로젝트 node_modules를 복사하지 않고 해당 공식 스킬 팩으로 보완 |
 | 보관된 Manim 스킬 | 기본 번들 제외 | 아카이브 항목을 활성 도구로 간주하지 않음. Manim CE의 현재 공식 문서와 프로젝트 환경을 기준으로 선택 |
 
-프로젝트 루트에서 설치된 Studio를 사용한다. Windows PowerShell은 `python -X utf8`, WSL/macOS/Linux는 `python3`를 사용한다.
+기본 설치 시 이 세 팩도 함께 설치된다. 아래 명령은 누락된 팩을 따로 설치할 때 사용한다. 프로젝트 루트에서 설치된 Studio를 사용한다. Windows PowerShell은 `python -X utf8`, WSL/macOS/Linux는 `python3`를 사용한다.
 
 ```sh
 python3 .agents/skills/codex-studio/scripts/toolkit.py install storyboarding anatomy-reveal colorfigures --for both

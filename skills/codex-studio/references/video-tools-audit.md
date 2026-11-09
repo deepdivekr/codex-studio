@@ -1,59 +1,61 @@
-# 영상 제작 도구 30개 검토
+# 영상 제작 도구 30개: 활용 방식과 설치 구성
 
-기준일: 2026-11-09. 사용자 메시지에 나열된 30개 이름을 공식 저장소에 대응했다. 첨부 링크 파일은 이 세션에서 열리지 않아 원본 30 URL과의 일치까지 검증한 것은 아니다. Manim은 커뮤니티판, Motion은 motiondivision/motion, Postprocessing은 pmndrs/postprocessing 기준이다.
+기준일: 2026-11-09. 아래 표에 링크한 30개 저장소를 기준으로 용도와 스킬 제공 형태를 확인했다. Manim은 커뮤니티판, Motion은 motiondivision/motion, Postprocessing은 pmndrs/postprocessing 기준이다.
 
 ## 조사 범위와 판단
 
-각 저장소의 기본 브랜치 README·라이선스·파일 트리를 확인했다. 27개는 재귀 트리 전체에서 SKILL.md를 검색했고, Remotion 본체·Blender·tsParticles는 응답 크기 제한 때문에 루트와 에이전트 설정 하위 트리를 조사했다. “미발견”은 이 범위에서 못 찾았다는 뜻이며, 모든 커뮤니티 스킬이 없다는 뜻은 아니다. AGENTS.md/CLAUDE.md/llms.txt는 설치용 SKILL.md와 구분했다. 별도 공식 스킬 저장소는 본체 README에서 연결된 출처로 확인했다. 조사 범위·경로·고정 참조는 [기계 판독 카탈로그](../assets/toolkits.json)에 남겼다.
+각 저장소의 기본 브랜치 README·라이선스·파일 트리를 확인했다. 27개는 재귀 트리 전체에서 SKILL.md를 검색했고, Remotion 본체·Blender·tsParticles는 응답 크기 제한 때문에 루트와 에이전트 설정 하위 트리를 조사했다. 스킬 파일의 확인 여부는 도구 자체의 사용 가능 여부와 다르다. 이 문서는 모든 커뮤니티 스킬을 검색한 목록이 아니다. AGENTS.md/CLAUDE.md/llms.txt는 설치용 SKILL.md와 구분했다. 별도 공식 스킬 저장소는 본체 README에서 연결된 출처로 확인했다. 조사 범위·경로·고정 참조는 [기계 판독 카탈로그](../assets/toolkits.json)에 남겼다.
 
-**권장 구성:** 기본 설치에는 Studio 지침·30개 카탈로그·선택 설치기를 넣는다. 아래 공식 스킬 5팩과 기존 환경에서 선별한 3팩을 합쳐 총 8팩을 제공한다. [추가 3팩과 설치 조건](local-video-skills.md)을 참고한다. npm/Python 런타임, 모델 가중치, 앱 바이너리, MCP 설정은 설치하지 않는다. 전체 코드/가중치를 MIT 패키지로 재포장하지 않는다.
+**기본 설치 구성:** Studio와 아래 공식 스킬 5팩, 기존 제작 환경에서 선별한 3팩을 합쳐 8팩을 함께 설치한다. [추가 3팩과 설치 조건](local-video-skills.md)을 참고한다. npm/Python 런타임, 모델 가중치, 앱 바이너리, MCP 설정은 설치하지 않는다. 전체 코드/가중치를 MIT 패키지로 재포장하지 않는다.
 
 ## 바로 설치할 수 있는 공식 스킬 팩
 
 | 팩 | 원본 | 포함 | 제한 |
 |---|---|---|---|
-| remotion | [remotion-dev/skills](https://github.com/remotion-dev/skills) | remotion-best-practices + 내부 참조 147파일 | 엔진 라이선스 별도. 스킬 저장소에 독립 LICENSE 미발견; 이 레포에 원문을 재배포하지 않고 사용자 요청 시 원본에서 받음 |
-| hyperframes | [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes/tree/main/skills) | 코어 4스킬·226파일 | 원격 미디어/계정/사용 이벤트는 별도. 선택 설치기가 실행하지 않음 |
+| remotion | [remotion-dev/skills](https://github.com/remotion-dev/skills) | remotion-best-practices + 내부 참조 147파일 | 엔진 라이선스 별도. 스킬 저장소에 별도 루트 LICENSE 파일은 확인하지 못함; 이 레포에 원문을 재배포하지 않고 설치 시 원본에서 받음 |
+| hyperframes | [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes/tree/main/skills) | 코어 4스킬·226파일 | 원격 미디어/계정/사용 이벤트는 별도. 설치기가 실행하지 않음 |
 | pixijs | [pixijs/pixijs](https://github.com/pixijs/pixijs/tree/dev/skills) | 서로 참조하는 26스킬·65파일 | 렌더 타임라인·MP4 출력은 별도 |
 | motion | [motiondivision/ai-kit](https://github.com/motiondivision/ai-kit) | motion 1스킬·12파일 | best-practices는 로컬. MCP와 Motion+ 유료 기능 미설정 |
 | gl-transitions | [공식 스킬](https://github.com/gl-transitions/gl-transitions/tree/master/skills/gl-transitions) | 1스킬·5파일 | 셰이더별 조건, 버전 호환, GPU/호스트 확인 |
 
 설치기는 검토한 커밋과 Git blob 해시를 고정하고, 전체 다운로드 검증을 마친 뒤 프로젝트의 .agents/skills 및 .claude/skills에 넣는다. 같은 버전은 재설치하지 않으며 변경된 기존 스킬은 명시적 --upgrade와 복구 사본으로 보호한다. 상위 라이선스 파일이 있는 팩은 함께 내려받는다. 이 표는 스킬 파일 검토 결과이며, 30개 엔진의 실제 렌더 벤치마크를 수행했다는 뜻은 아니다.
 
-## 30개별 결과
+## 30개 도구의 활용 방식
+
+“개별 스킬 미포함”은 현재 Studio 기본 번들에 해당 도구 전용 스킬을 넣지 않았다는 뜻이다. 도구를 사용할 수 없다는 뜻이 아니며, 필요하면 공식 문서를 바탕으로 프로젝트에 도입할 수 있다. 별도 스킬 작성·런타임 설치·실제 연동은 이 표의 제공 범위와 구분한다.
 
 | # | 프로젝트 | 확인한 스킬 | 역할 | 결정 | 라이선스 표기 |
 |---|---|---|---|---|---|
-| 1 | [three.js](https://github.com/mrdoob/three.js) | 조사 범위에서 미발견 | 3D 지도·카메라·조명·공간 자막 | 보조 도구 | MIT |
-| 2 | [Remotion](https://github.com/remotion-dev/remotion) | 별도 공식 제작 스킬 | React 기반 컷·자막·합성·MP4 렌더 | 선택 스킬 팩 | Remotion License (source-available) |
-| 3 | [Manim CE](https://github.com/ManimCommunity/manim) | 조사 범위에서 미발견 | 수학·다이어그램·설명형 모션 영상 | 보조 도구 | MIT |
-| 4 | [Chatterbox](https://github.com/resemble-ai/chatterbox) | 조사 범위에서 미발견 | 로컬 내레이션·다국어 TTS | 기본 제외 | MIT (code) |
-| 5 | [Motion](https://github.com/motiondivision/motion) | 별도 공식 AI Kit; 본체는 유지보수용 | 타이포·UI·스프링 애니메이션 | 선택 스킬 팩 | MIT (library / motion-ai package declaration) |
-| 6 | [HyperFrames](https://github.com/heygen-com/hyperframes) | 공식 공개 9개; 코어 4개 선택 | HTML 장면을 결정론적 MP4로 렌더 | 선택 스킬 팩 | Apache-2.0 |
-| 7 | [Blender mirror](https://github.com/blender/blender) | 조사 범위에서 미발견 | 3D 모델·시뮬레이션·합성·VSE | 별도 앱 | GPL-3.0 (whole application) |
-| 8 | [Matter.js](https://github.com/liabru/matter-js) | 조사 범위에서 미발견 | 2D 충돌·낙하·운동 시뮬레이션 | 보조 도구 | MIT |
-| 9 | [PixiJS](https://github.com/pixijs/pixijs) | 공식 제작 26개 | 2D 스프라이트·텍스트·입자·필터 | 선택 스킬 팩 | MIT |
-| 10 | [faster-whisper](https://github.com/SYSTRAN/faster-whisper) | 조사 범위에서 미발견 | 음성 전사·단어 타임스탬프·자막 초안 | 우선 보조 도구 | MIT |
-| 11 | [Anime.js](https://github.com/juliangarnier/anime) | 조사 범위에서 미발견 | SVG·DOM·타이포 타임라인 애니메이션 | 보조 도구 | MIT |
+| 1 | [three.js](https://github.com/mrdoob/three.js) | 개별 스킬 미포함; 공식 사용 문서 참고 | 3D 지도·카메라·조명·공간 자막 | 보조 도구 | MIT |
+| 2 | [Remotion](https://github.com/remotion-dev/remotion) | 별도 공식 제작 스킬 | React 기반 컷·자막·합성·MP4 렌더 | 기본 스킬 팩 | Remotion License (source-available) |
+| 3 | [Manim CE](https://github.com/ManimCommunity/manim) | 개별 스킬 미포함; 공식 사용 문서 참고 | 수학·다이어그램·설명형 모션 영상 | 보조 도구 | MIT |
+| 4 | [Chatterbox](https://github.com/resemble-ai/chatterbox) | 개별 스킬 미포함; 공식 사용 문서 참고 | 로컬 내레이션·다국어 TTS | 기본 제외 | MIT (code) |
+| 5 | [Motion](https://github.com/motiondivision/motion) | 별도 공식 AI Kit; 본체는 유지보수용 | 타이포·UI·스프링 애니메이션 | 기본 스킬 팩 | MIT (library / motion-ai package declaration) |
+| 6 | [HyperFrames](https://github.com/heygen-com/hyperframes) | 공식 공개 9개; 코어 4개 선택 | HTML 장면을 결정론적 MP4로 렌더 | 기본 스킬 팩 | Apache-2.0 |
+| 7 | [Blender mirror](https://github.com/blender/blender) | 개별 스킬 미포함; 공식 사용 문서 참고 | 3D 모델·시뮬레이션·합성·VSE | 별도 앱 | GPL-3.0 (whole application) |
+| 8 | [Matter.js](https://github.com/liabru/matter-js) | 개별 스킬 미포함; 공식 사용 문서 참고 | 2D 충돌·낙하·운동 시뮬레이션 | 보조 도구 | MIT |
+| 9 | [PixiJS](https://github.com/pixijs/pixijs) | 공식 제작 26개 | 2D 스프라이트·텍스트·입자·필터 | 기본 스킬 팩 | MIT |
+| 10 | [faster-whisper](https://github.com/SYSTRAN/faster-whisper) | 개별 스킬 미포함; 공식 사용 문서 참고 | 음성 전사·단어 타임스탬프·자막 초안 | 우선 보조 도구 | MIT |
+| 11 | [Anime.js](https://github.com/juliangarnier/anime) | 개별 스킬 미포함; 공식 사용 문서 참고 | SVG·DOM·타이포 타임라인 애니메이션 | 보조 도구 | MIT |
 | 12 | [Babylon.js](https://github.com/BabylonJS/Babylon.js) | 저장소 개발·유지보수용 | 복잡한 3D 장면·카메라·물리 연출 | 보조 도구 | Apache-2.0 |
-| 13 | [React Three Fiber](https://github.com/pmndrs/react-three-fiber) | 조사 범위에서 미발견 | React/Remotion에서 Three.js 장면 구성 | 보조 도구 | MIT |
-| 14 | [Tone.js](https://github.com/Tonejs/Tone.js) | 조사 범위에서 미발견 | 음악·효과음 합성·비트 시퀀싱 | 보조 도구 | MIT |
-| 15 | [Lottie Web](https://github.com/airbnb/lottie-web) | 조사 범위에서 미발견 | 벡터 애니메이션·아이콘·타이틀 재사용 | 보조 도구 | MIT |
-| 16 | [OGL](https://github.com/oframe/ogl) | 조사 범위에서 미발견 | 가벼운 WebGL·커스텀 셰이더 | 보조 도구 | Unlicense (package.json) |
-| 17 | [Motion Canvas](https://github.com/motion-canvas/motion-canvas) | 조사 범위에서 미발견 | 내레이션에 맞춘 설명형 2D 모션 | 보조 도구 | MIT |
+| 13 | [React Three Fiber](https://github.com/pmndrs/react-three-fiber) | 개별 스킬 미포함; 공식 사용 문서 참고 | React/Remotion에서 Three.js 장면 구성 | 보조 도구 | MIT |
+| 14 | [Tone.js](https://github.com/Tonejs/Tone.js) | 개별 스킬 미포함; 공식 사용 문서 참고 | 음악·효과음 합성·비트 시퀀싱 | 보조 도구 | MIT |
+| 15 | [Lottie Web](https://github.com/airbnb/lottie-web) | 개별 스킬 미포함; 공식 사용 문서 참고 | 벡터 애니메이션·아이콘·타이틀 재사용 | 보조 도구 | MIT |
+| 16 | [OGL](https://github.com/oframe/ogl) | 개별 스킬 미포함; 공식 사용 문서 참고 | 가벼운 WebGL·커스텀 셰이더 | 보조 도구 | Unlicense (package.json) |
+| 17 | [Motion Canvas](https://github.com/motion-canvas/motion-canvas) | 개별 스킬 미포함; 공식 사용 문서 참고 | 내레이션에 맞춘 설명형 2D 모션 | 보조 도구 | MIT |
 | 18 | [tsParticles](https://github.com/tsparticles/tsparticles) | 저장소 개발·유지보수용 | 입자·배경·불꽃·컨페티 | 보조 도구 | MIT |
-| 19 | [OBS Studio](https://github.com/obsproject/obs-studio) | 조사 범위에서 미발견 | 화면·창·장치 녹화 | 별도 앱 | GPL-2.0-or-later |
-| 20 | [Rapier](https://github.com/dimforge/rapier) | 조사 범위에서 미발견 | 2D/3D 강체·충돌 시뮬레이션 | 보조 도구 | Apache-2.0 |
-| 21 | [p5.js](https://github.com/processing/p5.js) | 조사 범위에서 미발견 | 생성형 그래픽·데이터 표현 | 보조 도구 | LGPL-2.1 |
-| 22 | [Postprocessing](https://github.com/pmndrs/postprocessing) | 조사 범위에서 미발견 | Three.js 색보정·블룸·깊이 효과 | 보조 도구 | Zlib |
+| 19 | [OBS Studio](https://github.com/obsproject/obs-studio) | 개별 스킬 미포함; 공식 사용 문서 참고 | 화면·창·장치 녹화 | 별도 앱 | GPL-2.0-or-later |
+| 20 | [Rapier](https://github.com/dimforge/rapier) | 개별 스킬 미포함; 공식 사용 문서 참고 | 2D/3D 강체·충돌 시뮬레이션 | 보조 도구 | Apache-2.0 |
+| 21 | [p5.js](https://github.com/processing/p5.js) | 개별 스킬 미포함; 공식 사용 문서 참고 | 생성형 그래픽·데이터 표현 | 보조 도구 | LGPL-2.1 |
+| 22 | [Postprocessing](https://github.com/pmndrs/postprocessing) | 개별 스킬 미포함; 공식 사용 문서 참고 | Three.js 색보정·블룸·깊이 효과 | 보조 도구 | Zlib |
 | 23 | [Shotcut](https://github.com/mltframework/shotcut) | 저장소 개발·유지보수용 | 수동 타임라인 편집·MLT 프로젝트 | 별도 앱 | GPL-3.0 |
-| 24 | [Howler.js](https://github.com/goldfire/howler.js) | 조사 범위에서 미발견 | 웹 편집실 오디오 재생·프리뷰 | 보조 도구 | MIT |
-| 25 | [Paper.js](https://github.com/paperjs/paper.js) | 조사 범위에서 미발견 | 벡터 경로·마스크·도형 모션 | 보조 도구 | MIT |
-| 26 | [glTF Transform](https://github.com/donmccurdy/glTF-Transform) | 조사 범위에서 미발견 | 3D 자산 크기·텍스처·메시 최적화 | 보조 도구 | MIT |
-| 27 | [WaveSurfer.js](https://github.com/katspaugh/wavesurfer.js) | 조사 범위에서 미발견 | 오디오 파형·구간 선택·자막 정렬 UI | 우선 보조 도구 | BSD-3-Clause |
+| 24 | [Howler.js](https://github.com/goldfire/howler.js) | 개별 스킬 미포함; 공식 사용 문서 참고 | 웹 편집실 오디오 재생·프리뷰 | 보조 도구 | MIT |
+| 25 | [Paper.js](https://github.com/paperjs/paper.js) | 개별 스킬 미포함; 공식 사용 문서 참고 | 벡터 경로·마스크·도형 모션 | 보조 도구 | MIT |
+| 26 | [glTF Transform](https://github.com/donmccurdy/glTF-Transform) | 개별 스킬 미포함; 공식 사용 문서 참고 | 3D 자산 크기·텍스처·메시 최적화 | 보조 도구 | MIT |
+| 27 | [WaveSurfer.js](https://github.com/katspaugh/wavesurfer.js) | 개별 스킬 미포함; 공식 사용 문서 참고 | 오디오 파형·구간 선택·자막 정렬 UI | 우선 보조 도구 | BSD-3-Clause |
 | 28 | [React Spring](https://github.com/pmndrs/react-spring) | 저장소 개발·유지보수용 | React 스프링·자연스러운 전환 | 보조 도구 | MIT |
-| 29 | [GL Transitions](https://github.com/gl-transitions/gl-transitions) | 공식 제작 스킬 | 셰이더 기반 장면 전환 | 선택 스킬 팩 | MIT catalog; per-shader licenses |
-| 30 | [FFmpeg](https://github.com/FFmpeg/FFmpeg) | 조사 범위에서 미발견 | 컷·합성·자막·믹싱·인코딩·ffprobe | 기본 실행 기반 | LGPL-2.1+ / optional GPL and other build terms |
+| 29 | [GL Transitions](https://github.com/gl-transitions/gl-transitions) | 공식 제작 스킬 | 셰이더 기반 장면 전환 | 기본 스킬 팩 | MIT catalog; per-shader licenses |
+| 30 | [FFmpeg](https://github.com/FFmpeg/FFmpeg) | 개별 스킬 미포함; 공식 사용 문서 참고 | 컷·합성·자막·믹싱·인코딩·ffprobe | 기본 실행 기반 | LGPL-2.1+ / optional GPL and other build terms |
 
 ## 항목별 설치·연동 메모
 
@@ -94,7 +96,7 @@ README에 2026-08 연구 종료·미유지보수 명시. 모델 파일·GPU·물
 
 ### 6. HyperFrames
 
-공식 코어 4개만 선택 설치. 현재 스킬의 사용 이벤트·계정·유료 미디어 경로를 분리하고, 로컬 렌더와 원격 서비스를 혼동하지 않는다.
+공식 코어 4개를 기본 팩에 포함. 현재 스킬의 사용 이벤트·계정·유료 미디어 경로를 분리하고, 로컬 렌더와 원격 서비스를 혼동하지 않는다.
 
 - 런타임 식별: `hyperframes`. 이는 설치를 실행한 기록이 아니다. 기존 프로젝트의 버전/lockfile과 공식 설치 문서를 확인해 필요한 구성만 선택한다.
 - 근거: [README](https://github.com/heygen-com/hyperframes/blob/main/README.md), [라이선스/패키지 선언](https://github.com/heygen-com/hyperframes/blob/main/LICENSE), [검토 트리](https://github.com/heygen-com/hyperframes/tree/c1e96a45b24c66c96ed9151075f5262d4a3614dc).

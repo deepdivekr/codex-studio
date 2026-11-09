@@ -69,16 +69,31 @@ irm https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/in
 
 한글 UTF-8 표시, 모바일 화면, 저장 후 새로고침, 기기 간 수정 충돌까지 확인하도록 스킬에 안내했습니다. [Sites 배포·클라우드 저장·로컬 반영 상세 지침](skills/codex-studio/references/mobile-sites.md)
 
-## 영상 제작 도구 확장
+## 기본 포함 영상 제작 스킬
 
-**“Remotion 스킬 팩 추가해줘”**, **“PixiJS와 전환 효과 스킬 설치해줘”**처럼 요청하세요. 검토한 공식 스킬을 해당 프로젝트의 Codex·Claude에 선택 설치합니다.
+한 줄 설치를 실행하면 Studio와 영상 제작 스킬 8개 팩이 함께 설치됩니다. 별도로 팩을 추가해달라고 요청할 필요 없이, 만들고 싶은 작업을 말하면 에이전트가 관련 스킬을 활용합니다.
 
-`remotion` · `hyperframes` · `pixijs` · `motion` · `gl-transitions` · `storyboarding` · `anatomy-reveal` · `colorfigures`
+| 스킬 팩 | 용도 |
+| --- | --- |
+| Remotion | React 기반 영상 구성·자막·합성 |
+| HyperFrames | HTML 장면 기반 영상 제작 |
+| PixiJS | 2D 그래픽·텍스트·효과 |
+| Motion | 타이포·UI 애니메이션 |
+| GL Transitions | 셰이더 기반 장면 전환 |
+| Storyboarding | 저장소 소개·설명 모션그래픽 |
+| Anatomy Reveal | 사물 구조·분해 애니메이션 |
+| Colorfigures | 작동 원리를 보여주는 도해·HTML 삽화 |
 
-기존 제작 환경에서 쓰던 **스토리보드 영상·사물 분해 애니메이션·Colorfigures 도해**도 다른 사용자가 설치할 수 있습니다. Colorfigures는 라이선스를 포함한 설치본을 내장했고, 나머지 팩은 검토한 공개 원본을 내려받습니다. **“스토리보드와 분해 애니메이션 번들 설치해줘”**라고 요청하면 됩니다. [기존 스킬 선별 결과와 실행 조건](skills/codex-studio/references/local-video-skills.md)
+예: “이 레포 소개 영상을 스토리보드로 만들어줘”, “이 물체의 분해 애니메이션 만들어줘”.
 
-검토한 커밋·파일 해시를 확인하고 설치하며, 기존 변경은 보호합니다. 영상 엔진·모델·앱·MCP는 따로 설정하므로 기본 설치가 무거워지지 않습니다. 설치 후 새 대화를 시작하세요.
+7개 팩은 설치 과정에서 검토한 공개 원본 버전을 내려받고, Colorfigures는 라이선스를 포함한 내장 설치본을 사용합니다. 기존 스킬 폴더는 보존하고 없는 스킬만 추가합니다. 다운로드에 실패하면 완료로 표시하지 않으며, 같은 명령을 다시 실행해 이어서 설치할 수 있습니다.
 
-[30개 프로젝트 개별 검토표](skills/codex-studio/references/video-tools-audit.md) · [선택 설치 명령과 도구 선택](skills/codex-studio/references/video-toolkit.md)
+함께 설치되는 것은 스킬 지침·템플릿·보조 스크립트입니다. 실제 제작에 필요한 영상 엔진·앱·모델과 유료 서비스 인증은 작업과 기기에 맞춰 별도로 설정합니다. 설치 후 해당 프로젝트에서 새 대화를 시작하세요.
+
+Python 설치기를 직접 사용할 때는 `--studio-only`로 편집실만 설치하거나, `--bundle NAME`을 반복해 설치할 팩을 제한할 수 있습니다.
+
+[8개 팩의 설치·사용 방법](skills/codex-studio/references/video-toolkit.md) · [기존 제작 스킬과 실행 조건](skills/codex-studio/references/local-video-skills.md)
+
+그 밖의 영상 도구는 [30개 프로젝트 활용 안내](skills/codex-studio/references/video-tools-audit.md)에서 용도와 준비 사항을 확인하세요. 이 목록은 30개 도구 모두가 설치되거나 연동됐다는 의미가 아닙니다.
 
 [상세 사용법·추가 기능·개발 안내](docs/advanced.md) · [MIT License](LICENSE)

@@ -103,7 +103,9 @@ def download(pack, item):
     return data
 
 
-def install_pack(project, name, pack, agent='both', upgrade=False, fetch=download):
+def install_pack(project, name, pack, agent='both', upgrade=False, fetch=download, keep_existing=False):
+    if upgrade and keep_existing:
+        raise ValueError('Choose either upgrade or keep-existing')
     project = Path(project).resolve(strict=True)
     if not project.is_dir():
         raise ValueError('Project must be a directory')
@@ -120,6 +122,8 @@ def install_pack(project, name, pack, agent='both', upgrade=False, fetch=downloa
         raise ValueError('Skill targets alias each other')
     # Refuse replacing user-managed skills unless the caller deliberately requests upgrade.
     for target in targets:
+        if keep_existing:
+            continue
         if target.exists() and not upgrade:
             receipt = target / RECEIPT
             if not receipt.is_file():
@@ -134,7 +138,8 @@ def install_pack(project, name, pack, agent='both', upgrade=False, fetch=downloa
                         raise ValueError(f'{target} has local changes; use --upgrade to preserve a backup')
     pending = [t for t in targets if not t.exists() or upgrade]
     if not pending:
-        return {'pack': name, 'status': 'already_installed', 'skills': names, 'commit': pack['commit']}
+        return {'pack': name, 'status': 'preserved_existing' if keep_existing else 'already_installed',
+                'skills': names, 'commit': None if keep_existing else pack['commit']}
     work = within(project, '.codex-studio/toolkit-work')
     work.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=name+'-', dir=work) as temporary:
@@ -185,6 +190,7 @@ def install_pack(project, name, pack, agent='both', upgrade=False, fetch=downloa
             raise
     return {'pack': name, 'status': 'installed', 'skills': names, 'commit': pack['commit'],
             'targets': [str(p) for p in pending], 'backup': str(backup) if replaced else None,
+            'preserved_targets': [str(p) for p in targets if p not in pending],
             'runtime_installed': False, 'mcp_configured': False}
 
 
@@ -198,7 +204,9 @@ def main(argv=None):
     p = sub.add_parser('install', help='Download only selected upstream skills at the reviewed commit')
     p.add_argument('packs', nargs='+')
     p.add_argument('--for', dest='agent', choices=('codex', 'claude', 'both'), default='both')
-    p.add_argument('--upgrade', action='store_true', help='Back up existing skill folders before replacement')
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument('--upgrade', action='store_true', help='Back up existing skill folders before replacement')
+    mode.add_argument('--keep-existing', action='store_true', help='Preserve existing skill folders and install missing ones')
     args = parser.parse_args(argv)
     catalog = json.loads(CATALOG.read_text(encoding='utf-8'))
     if args.command == 'list':
@@ -221,7 +229,8 @@ def main(argv=None):
         result = []
         for name in dict.fromkeys(args.packs):
             print(f'Installing pinned {name} skills (no runtime/MCP setup)…', file=sys.stderr, flush=True)
-            result.append(install_pack(args.project, name, catalog['packs'][name], args.agent, args.upgrade))
+            result.append(install_pack(args.project, name, catalog['packs'][name], args.agent, args.upgrade,
+                                       keep_existing=args.keep_existing))
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
