@@ -64,9 +64,10 @@ async function refresh() {
   await refreshRequests();
   if (!$('versions-page').hidden) await refreshVersions();
 }
+function hasUnsavedWork() { return dirty || !!$('note').value.trim(); }
 function allowSwitch() {
   if (saving || switching) return false;
-  return !dirty || confirm('저장하지 않은 편집안을 버리고 다른 작업물로 이동할까요?');
+  return !hasUnsavedWork() || confirm('저장하지 않은 편집안과 작성 중인 댓글을 버리고 다른 작업물로 이동할까요?');
 }
 async function openArtifact(id) {
   if (!id || !allowSwitch()) {
@@ -404,7 +405,7 @@ $('save').onclick = guard(async () => {
     await refreshRequests();
   } finally { saving = false; $('save').disabled = !dirty; showScript(); }
 });
-window.addEventListener('beforeunload', event => { if (dirty) event.preventDefault(); });
+window.addEventListener('beforeunload', event => { if (hasUnsavedWork()) { event.preventDefault(); event.returnValue = ''; } });
 async function connect() {
   connected = false;
   const directFile = location.protocol === 'file:';

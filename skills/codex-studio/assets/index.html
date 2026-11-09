@@ -55,9 +55,9 @@
           <section class="audio-mixer stack" aria-label="오디오 레이어">
             <h2>오디오 레이어</h2>
             <p class="quiet">재생 중 바로 반영됩니다. 편집안 저장 후 내보내기에도 적용됩니다.</p>
-            <label id="voice-control" class="audio-row"><span id="voice-label">나레이션</span><input id="voice" aria-label="나레이션 볼륨" type="range" min="0" max="100"><output id="voice-value"></output><button id="voice-mute" type="button" aria-pressed="false">음소거</button></label>
-            <label id="music-control" class="audio-row">배경음악<input id="music" aria-label="배경음악 볼륨" type="range" min="0" max="100"><output id="music-value"></output><button id="music-mute" type="button" aria-pressed="false">음소거</button></label>
-            <label id="effects-control" class="audio-row">효과음<input id="effects" aria-label="효과음 볼륨" type="range" min="0" max="100"><output id="effects-value"></output><button id="effects-mute" type="button" aria-pressed="false">음소거</button></label>
+            <div id="voice-control" class="audio-row"><label id="voice-label" for="voice">나레이션</label><input id="voice" aria-label="나레이션 볼륨" type="range" min="0" max="100"><output id="voice-value"></output><button id="voice-mute" type="button" aria-pressed="false">음소거</button></div>
+            <div id="music-control" class="audio-row"><label for="music">배경음악</label><input id="music" aria-label="배경음악 볼륨" type="range" min="0" max="100"><output id="music-value"></output><button id="music-mute" type="button" aria-pressed="false">음소거</button></div>
+            <div id="effects-control" class="audio-row"><label for="effects">효과음</label><input id="effects" aria-label="효과음 볼륨" type="range" min="0" max="100"><output id="effects-value"></output><button id="effects-mute" type="button" aria-pressed="false">음소거</button></div>
             <p id="audio-hint" class="quiet"></p>
           </section>
         </div>

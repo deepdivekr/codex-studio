@@ -41,3 +41,11 @@ For Korean or other non-ASCII text, write UTF-8 files, put `<meta charset="utf-8
 Check desktop and approximately 390 px mobile widths, video metadata/playback/seeking, keyboard/touch editing, save → reload persistence, two independently loaded clients, and failed-save/conflict behavior. Ensure comments stay inside the viewport and long labels do not force horizontal scrolling. State exactly which checks passed; an emulated mobile viewport is not a physical phone test. The Sites deployment result verifies publication; do not claim hosted save behavior solely from a successful deployment.
 
 Keep the site private unless the user explicitly requests another audience. Report the final clickable HTTPS address and any sign-in requirement. Preserve existing tabs and stop only preview processes started for this deployment.
+
+## Media and editing acceptance checks
+
+A locally passing editor is not evidence that its hosted media can seek. On the deployed origin, inspect a nonzero byte-range request for the media and test a jump to an unbuffered middle/end frame. If the host ignores Range, use a bounded review proxy loaded into a Blob URL (show loading progress and retain queued seeks), or implement a range-capable media route. Keep playback time, displayed frame and timeline position consistent. Do not imply the file is ready while download is incomplete.
+
+For any added move/resize control, use the real source layer and a clean background. Dragging only a border is not a visual edit preview. Verify the content follows during the drag, the old location is cleared, numeric input agrees, and save/reload/playback preserves the transform. If no layer data exists, omit that capability or state the actual limitation before presenting the editor.
+
+Use an isolated QA artifact/record and clean up only that test data. Exercise create/edit/save/reload/complete/reopen/delete, focused-text preservation during polling, two-client conflicts, and failed-save retry. Include image/HTML/version/audio paths when offered. Preserve unsent comment text on navigation and use distinct labels for sliders and buttons. Report failures and untested environments; viewport emulation does not verify physical touch or another AI client's automatic skill selection.
