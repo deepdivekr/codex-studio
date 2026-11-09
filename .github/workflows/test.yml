@@ -11,5 +11,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+      - run: python -m pip install Pillow
       - run: python -X utf8 -m unittest discover -s tests -v
-      - run: node --check skills/codex-artifacts/assets/app.js
+      - run: node --check skills/codex-studio/assets/app.js
+      - run: node --check skills/codex-studio/assets/images.js

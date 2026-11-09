@@ -1,11 +1,15 @@
 ---
-name: codex-artifacts
-description: Create or open a local artifact editor for video, HTML, or images, with frame notes, subtitle and background-music edits, and shared Codex/Claude handoffs. Use for natural requests such as “이 영상 편집하게 아티펙트 생성해줘”, “자막 수정할 화면 열어줘”, or “아티펙트로 보여줘”, and /codex-아티펙트. Do not use for publishing a website or merely answering a code question.
+name: codex-studio
+description: Open Codex Studio, a local review editor for videos, images and HTML, with frame comments, image region requests, subtitles, audio levels and shared Codex/Claude records. Use for “편집실 열어줘”, “이 이미지에서 이 부분 고치게 해줘”, “영상 편집할 스튜디오 만들어줘”, or existing artifact-editor requests. Do not use for publishing a website or merely answering a code question.
 ---
 
-# Codex Artifacts
+# Codex Studio
 
 The editor belongs to the human reviewing the active client's work. Do not ask them to select Codex or Claude as an editor or to relay messages between agents.
+
+For image requests, read [references/image-edits.md](references/image-edits.md). Clicks record reference points; dragged rectangles define editable regions. Neither action automatically segments an object's outline. Keep the original image and preserve pixels outside the requested rectangle using the supplied prepare/apply workflow. Image generation uses the active client's available image-editing tool, not this local server. Image/HTML version archives are not yet implemented; register image results under new IDs and link them to completed requests. Video rev archives remain supported.
+
+The skill is now `codex-studio`. Existing `.codex-artifacts/` records and managed instruction markers are intentionally retained so both clients read the same saved history. The old `skills/codex-artifacts/scripts/artifact.py` launch path remains compatible.
 
 Use this skill's `scripts/artifact.py` with Python 3.10+ in the target repository. Resolve the script relative to this skill, not to the working directory. If the working folder is not the intended checkout, pass `--project PATH` before the command. Run `--help` or a subcommand's `--help` for argument names.
 

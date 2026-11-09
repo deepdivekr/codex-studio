@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Studio"
+  short_description: "영상·이미지·HTML을 검토하고 수정 요청을 주고받는 편집실"
+  default_prompt: "$codex-studio로 이 프로젝트의 편집실을 열고 저장한 수정 요청을 확인해줘."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "/codex-아티펙트"
-  short_description: "로컬 아티펙트 검토 및 Codex·Claude 작업 인계"
-  default_prompt: "$codex-artifacts로 이 저장소의 편집실을 열고 받은 인계를 확인해줘."

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 import wave
 
-SKILL = Path(__file__).resolve().parents[1] / 'skills/codex-artifacts'
+SKILL = Path(__file__).resolve().parents[1] / 'skills/codex-studio'
 sys.path.insert(0, str(SKILL / 'scripts'))
 from media import load_cues, render
 from model import Conflict, Project

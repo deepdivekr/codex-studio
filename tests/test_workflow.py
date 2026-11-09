@@ -15,7 +15,7 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-SKILL = Path(__file__).resolve().parents[1] / 'skills/codex-artifacts'
+SKILL = Path(__file__).resolve().parents[1] / 'skills/codex-studio'
 sys.path.insert(0, str(SKILL / 'scripts'))
 from media import load_cues, render
 from model import Conflict, Project

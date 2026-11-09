@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.command != 'HEAD':
                 self.wfile.write(data)
             return
-        if path in ('/app.js', '/requests.js', '/versions.js', '/style.css'):
+        if path in ('/app.js', '/requests.js', '/versions.js', '/images.js', '/style.css'):
             return self.stream(UI / path[1:])
         if path == '/api/health':
             return self.payload({'instance': self.server.instance})

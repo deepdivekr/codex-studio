@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 /.codex-artifacts/
+/.agents/skills/codex-studio/
+/.claude/skills/codex-studio/
 /.agents/skills/codex-artifacts/
 /.claude/skills/codex-artifacts/
 /dist/

@@ -7,6 +7,7 @@ from fractions import Fraction
 from functools import lru_cache
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -110,6 +111,37 @@ def fingerprint(path):
     return _fingerprint(path, stat.st_size, stat.st_mtime_ns)
 
 
+def image_selection(value, artifact):
+    if not isinstance(value, dict) or artifact['kind'] != 'image':
+        raise ValueError('Selections are only available for images')
+    kind = value.get('kind')
+    fields = ('x', 'y', 'width', 'height') if kind == 'rect' else ('x', 'y')
+    if kind not in ('point', 'rect'):
+        raise ValueError('Use a point or rectangular image selection')
+    clean = {'kind': kind}
+    for field in fields:
+        number = value.get(field)
+        if type(number) not in (int, float) or not math.isfinite(number) or not 0 <= number <= 1:
+            raise ValueError('Selection coordinates must be finite numbers from 0 to 1')
+        clean[field] = number
+    if kind == 'rect' and (clean['width'] <= 0 or clean['height'] <= 0
+                           or clean['x'] + clean['width'] > 1 + 1e-9
+                           or clean['y'] + clean['height'] > 1 + 1e-9):
+        raise ValueError('Selected rectangle must fit inside the image')
+    for field in ('image_width', 'image_height'):
+        number = value.get(field)
+        if type(number) is not int or not 1 <= number <= 100_000:
+            raise ValueError('Selection must include the original image dimensions')
+        clean[field] = number
+    source = value.get('source_sha256')
+    if not isinstance(source, str) or not re.fullmatch('[a-f0-9]{64}', source):
+        raise ValueError('Selection must identify its source image')
+    if source != artifact.get('fingerprints', {}).get('file'):
+        raise Conflict('The selected image changed. Reopen the current image before selecting it.')
+    clean['source_sha256'] = source
+    return clean
+
+
 class Project:
     def __init__(self, root):
         self.root = Path(root).resolve(strict=True)
@@ -209,6 +241,8 @@ class Project:
                         raise ValueError(f'Unsupported audio file: {asset.suffix}')
                     record[field] = value
                     record['fingerprints'][field] = fingerprint(asset)
+        elif kind == 'image':
+            record['fingerprints'] = {'file': fingerprint(original)}
         elif kind == 'html':
             root = PurePosixPath(source).parent
             assets = []
@@ -238,6 +272,10 @@ class Project:
         record = read_json(self.storage('artifacts', key + '.json'))
         if record.get('version') != VERSION or record.get('id') != key:
             raise ValueError('Artifact record version or ID mismatch')
+        # Older image registrations had no hash. Bind new selections to the file
+        # presented now; saved selections retain their own immutable source hash.
+        if record['kind'] == 'image' and not record.get('fingerprints'):
+            record['fingerprints'] = {'file': fingerprint(self.local(record['file']))}
         return record
 
     def asset(self, artifact, field):
@@ -292,12 +330,16 @@ class Project:
             seen.add(ident)
             cleaned.append({'id': ident, 'frame': frame, 'author': author,
                             'text': required_text(note.get('text'), 'Note', 2000)})
+            if note.get('selection') is not None:
+                cleaned[-1]['selection'] = image_selection(note['selection'], artifact)
         for idx, value in captions.items():
             if (not re.fullmatch(r'0|[1-9][0-9]{0,6}', idx) or int(idx) >= cue_count
                     or not isinstance(value, str) or len(value) > 1000):
                 raise ValueError('Invalid caption edit')
         with self.lock():
             previous = self.review(key)
+            if artifact['kind'] == 'image':
+                self.asset(artifact, 'file')
             if previous['revision'] != rev:
                 raise Conflict('Another session saved changes. Copy your draft before reloading.')
             record = {'version': VERSION, 'revision': rev + 1, 'updated_at': now(), 'music': music,
@@ -488,10 +530,15 @@ class Project:
                     or body.get('request_version') != item['request_version']):
                 raise Conflict('The request or its status changed. Read it again before updating.')
             if state == 'done':
-                self.asset(self.artifact(key), 'file')
+                art = self.artifact(key)
+                self.asset(art, 'file')
+                if item.get('selection'):
+                    image_selection(item['selection'], art)
             entry = {'at': now(), 'status': state, 'by': actor, 'summary': summary, 'checks': checks,
                      'files': files, 'result_artifact': result, 'request_version': item['request_version'],
                      'request_text': item['text'], 'frame': item['frame']}
+            if item.get('selection'):
+                entry['selection'] = item['selection']
             write_json(self.storage('requests', key, ident + '.json'),
                        {'version': VERSION, 'revision': item['revision'] + 1, **entry,
                         'history': [*item['history'], entry]})

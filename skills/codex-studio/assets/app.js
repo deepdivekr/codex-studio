@@ -66,7 +66,7 @@ async function refresh() {
 }
 function allowSwitch() {
   if (saving || switching) return false;
-  return !dirty || confirm('저장하지 않은 편집안을 버리고 다른 아티펙트로 이동할까요?');
+  return !dirty || confirm('저장하지 않은 편집안을 버리고 다른 작업물로 이동할까요?');
 }
 async function openArtifact(id) {
   if (!id || !allowSwitch()) {
@@ -91,6 +91,8 @@ async function openArtifact(id) {
     preview.className = 'preview';
     $('screen').append(preview);
     const isVideo = artifact.kind === 'video';
+    imageSelection = null; imageStage = null;
+    $('image-tools').hidden = artifact.kind !== 'image';
     $('transport').hidden = !isVideo;
     $('subtitle-box').hidden = !isVideo || !cues.length;
 
@@ -100,12 +102,7 @@ async function openArtifact(id) {
     $('note-title').textContent = isVideo ? '이 프레임의 수정 요청' : '수정 요청';
     $('note').value = '';
     if (isVideo) mountVideo(preview, id);
-    if (artifact.kind === 'image') {
-      const img = node('img');
-      img.alt = artifact.title;
-      img.src = '/media/' + id + '/file';
-      preview.append(img);
-    }
+    if (artifact.kind === 'image') mountImage(preview, id);
     if (artifact.kind === 'html') {
       const iframe = node('iframe');
       iframe.title = artifact.title;
@@ -279,8 +276,11 @@ function showNotes() {
   $('notes').replaceChildren();
   for (const note of review.notes) {
     const li = node('li');
-    const stamp = note.frame === null ? node('span', roleNames[note.author]) : node('button',timecode(note.frame));
+    if (note.selection) li.className = 'image-note';
+    const stamp = note.selection ? node('button', selectionLabel(note.selection))
+      : note.frame === null ? node('span', roleNames[note.author]) : node('button',timecode(note.frame));
     if (note.frame !== null) stamp.onclick = () => seek(note.frame);
+    if (note.selection) stamp.onclick = () => selectImageRegion(note.selection);
     const text = node('span', note.frame === null ? note.text : roleNames[note.author] + ' · ' + note.text);
     const remove = node('button','삭제');
     remove.onclick = () => { review.notes = review.notes.filter(item=>item.id!==note.id); showNotes(); changed(); };
@@ -333,7 +333,7 @@ $('edit-mode').onchange = event => {
   changed();
 };
 $('copy-sync').onclick = guard(async () => {
-  const prompt = '이 저장소의 $codex-artifacts에서 승인된 대본 ' + artifact.id
+  const prompt = '이 저장소의 $codex-studio에서 승인된 대본 ' + artifact.id
     + ' (편집안 v' + review.revision + ')을 읽어줘. 기존 음성 제작·정렬 방식을 확인하고 새 나레이션에 컷과 자막을 맞춰 별도 MP4로 만들어줘.';
   await navigator.clipboard.writeText(prompt);
   status('싱크 작업 요청을 복사했습니다.');
@@ -379,7 +379,10 @@ $('add-note').onclick = () => {
   if (!text) return;
   if (player && !Number.isFinite(player.duration)) return status('영상이 열린 후 메모를 추가하세요.');
   player?.pause();
-  review.notes.push({id:crypto.randomUUID(), frame:frameNow(), author:'human', text});
+  const note = {id:crypto.randomUUID(), frame:frameNow(), author:'human', text};
+  if (artifact.kind === 'image' && imageSelection) note.selection = structuredClone(imageSelection);
+  review.notes.push(note);
+  if (artifact.kind === 'image') selectImageRegion(null);
   review.notes.sort((a,b)=>(a.frame ?? 0)-(b.frame ?? 0));
   $('note').value = '';
   showNotes();
@@ -396,7 +399,8 @@ $('save').onclick = guard(async () => {
     review.revision = stored.revision;
     review.saved_rev = stored.saved_rev;
     if (!dirty) review.script_approved = stored.script_approved;
-    status(dirty ? '새 변경을 다시 저장하세요.' : (stored.saved_rev ? 'rev' + stored.saved_rev : '편집안') + ' 저장됨 · 수정 요청과 버전 탭에서 확인하세요.');
+    status(dirty ? '새 변경을 다시 저장하세요.' : (stored.saved_rev ? 'rev' + stored.saved_rev : '편집안')
+      + (artifact.kind === 'video' ? ' 저장됨 · 수정 요청과 버전 탭에서 확인하세요.' : ' 저장됨 · 수정 요청 탭에서 확인하세요.'));
     await refreshRequests();
   } finally { saving = false; $('save').disabled = !dirty; showScript(); }
 });
@@ -411,11 +415,11 @@ async function connect() {
   $('retry-connection').hidden = directFile;
   status('편집실에 연결하는 중…');
   try {
-    if (directFile) throw new Error('HTML 파일을 직접 열었습니다. 대화에서 “이 프로젝트의 아티펙트 편집실 열어줘”라고 요청하세요. 실행 중인 편집실의 http://127.0.0.1:포트/ 주소로 연결합니다.');
+    if (directFile) throw new Error('HTML 파일을 직접 열었습니다. 대화에서 “이 프로젝트의 작업물 편집실 열어줘”라고 요청하세요. 실행 중인 편집실의 http://127.0.0.1:포트/ 주소로 연결합니다.');
     await refresh();
     const requested = new URLSearchParams(location.search).get('artifact');
     if (requested && !board.artifacts.some(x=>x.id===requested))
-      throw new Error('이 편집실에 요청한 아티펙트가 없습니다. 대화에서 해당 파일의 편집실을 다시 열어달라고 요청하세요.');
+      throw new Error('이 편집실에 요청한 작업물가 없습니다. 대화에서 해당 파일의 편집실을 다시 열어달라고 요청하세요.');
     if (board.artifacts.length) await openArtifact(requested || $('artifacts').value);
     else status('편집실 연결됨');
     document.querySelector('nav').hidden = false;

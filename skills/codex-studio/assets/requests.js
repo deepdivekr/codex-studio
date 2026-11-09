@@ -24,7 +24,7 @@ async function refreshRequests() {
 }
 
 function requestStamp(item) {
-  if (item.frame === null) return item.kind === 'image' ? '이미지' : '문서';
+  if (item.frame === null) return item.kind === 'image' ? selectionLabel(item.selection) : '문서';
   const [n,d = 1] = item.fps.split('/').map(Number);
   const rate = n / d, seconds = Math.floor(item.frame / rate);
   return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60,
@@ -36,6 +36,7 @@ async function openRequest(item, result = false) {
   if (artifact?.id !== key) await openArtifact(key);
   if (artifact?.id !== key) return;
   showPage('review');
+  if (!result && item.kind === 'image') selectImageRegion(item.selection || null);
   if (!result && item.frame !== null && player) {
     if (Number.isFinite(player.duration)) seek(item.frame);
     else {
@@ -71,8 +72,7 @@ function showRequests() {
     preview.append(shot, node('span', requestStamp(item)));
     if (item.kind === 'video') thumbnailObserver.observe(shot);
     else if (item.kind === 'image') {
-      const image = node('img'); image.src = '/media/' + item.artifact + '/file'; image.alt = item.title;
-      shot.replaceChildren(image);
+      imageRequestThumbnail(shot, item);
     }
     const body = node('div'); body.className = 'stack request-body';
     const heading = node('div'); heading.className = 'row spread';

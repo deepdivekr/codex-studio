@@ -1,20 +1,22 @@
-# /codex-아티펙트 · Codex Artifacts
+# Codex Studio
 
-A local video, HTML and image review board with a shared handoff log for Codex and Claude Code. Python 3.10+, no runtime packages, no account. FFmpeg/ffprobe is optional for review and required for MP4 export.
+A local studio for reviewing videos, images and HTML, with shared revision requests and handoffs for Codex and Claude Code. Python 3.10+, no account. The editor needs no runtime packages. FFmpeg/ffprobe is required for MP4 export; Pillow is optional for image-region preparation and composition.
 
 ## 시작하기
 
 이 저장소를 클론한 폴더에서 다음을 실행합니다. Windows PowerShell에서는 `python3` 대신 `python -X utf8`을 사용하세요.
 
 ```bash
-python3 skills/codex-artifacts/scripts/artifact.py --project /path/to/project install
+python3 skills/codex-studio/scripts/artifact.py --project /path/to/project install
 cd /path/to/project
-python3 .agents/skills/codex-artifacts/scripts/artifact.py open
+python3 .agents/skills/codex-studio/scripts/artifact.py open
 ```
 
-Codex에서는 `$codex-artifacts`, Claude Code에서는 `/codex-artifacts`로 호출합니다. 화면 이름은 **/codex-아티펙트**입니다. 스킬은 각각 `.agents/skills/`와 `.claude/skills/`에 설치합니다. [Codex 스킬](https://developers.openai.com/codex/skills) · [Claude Code 스킬](https://code.claude.com/docs/en/skills)
+Codex에서는 `$codex-studio`, Claude Code에서는 `/codex-studio`로 호출합니다. 화면 이름은 **Codex Studio**입니다. 스킬은 각각 `.agents/skills/`와 `.claude/skills/`에 설치합니다. [Codex 스킬](https://developers.openai.com/codex/skills) · [Claude Code 스킬](https://code.claude.com/docs/en/skills)
 
 설치하면 프로젝트의 `AGENTS.md`와 `CLAUDE.md`에 각 도구의 인계 확인 절차가 추가됩니다. 기존 프로젝트 지침은 유지됩니다. 이전 버전에서 업데이트하려면 설치 명령에 `--upgrade`를 붙이고 같은 프로젝트 폴더에서 새 세션을 여세요. [Codex 프로젝트 지침](https://developers.openai.com/codex/guides/agents-md) · [Claude Code 프로젝트 지침](https://code.claude.com/docs/en/memory)
+
+이름을 바꿔도 기존 `.codex-artifacts/`의 편집안·요청·영상 rev·인계 기록은 유지합니다. `install --upgrade`는 이전 스킬의 진입 문서를 백업하고 `codex-studio`로 연결합니다. 기존 실행 명령도 호환용 진입점으로 계속 작동합니다.
 
 **설치 형태는 스킬 + 로컬 편집 서버입니다. MCP 설정은 필요하지 않습니다.** 설치 후 같은 프로젝트에서 “이 영상 편집하게 아티펙트 생성해줘”, “자막 수정할 화면 열어줘”, “이 HTML 아티펙트로 보여줘”처럼 요청하세요. 에이전트가 파일을 등록하고 서버를 켜거나 재사용한 뒤 해당 아티펙트 주소를 엽니다. 요청과 스킬 설명을 맞춰 선택하는 방식이며, 대상이 여러 개면 파일을 확인합니다. [자연어로 스킬 선택](https://learn.chatgpt.com/docs/build-skills#how-chatgpt-and-codex-use-skills)
 
@@ -22,7 +24,7 @@ Codex에서는 `$codex-artifacts`, Claude Code에서는 `/codex-artifacts`로 �
 
 서버는 브라우저를 닫아도 계속 실행되며 프로젝트당 하나를 재사용합니다. 주소와 PID는 `status`, 실행 로그는 `.codex-artifacts/runtime/server.log`에서 확인합니다. 직접 프로세스를 관리하려면 기존 `serve --port 0` 명령을 사용하고 Ctrl+C로 종료할 수 있습니다. 목록은 등록된 아티펙트 기록만 읽으며 저장소 전체를 스캔하지 않습니다. 연결 실패는 10초 안에 안내하고 다시 연결할 수 있습니다.
 
-## 아티펙트 검토
+## 작업물 검토
 
 아래 명령의 `artifact.py`는 설치한 스킬의 `scripts/artifact.py`를 뜻합니다. 경로는 프로젝트에 상대적이며 구분자는 `/`입니다. Git이 없는 폴더도 `--project PATH`로 지정할 수 있습니다.
 
@@ -37,8 +39,16 @@ python3 artifact.py render episode-01 --out exports/episode-01-review.mp4
 - **영상**은 프레임 이동, 수정 요청, 자막 수정과 나레이션·배경음악·효과음 볼륨 조절을 지원합니다. `--fps` 생략 시 ffprobe로 읽습니다. 정밀한 프레임 위치는 일정한 프레임레이트(CFR) 영상이 필요합니다.
 - **자막**은 SRT, WebVTT 또는 `[{"start":0,"end":2,"text":"첫 줄"}]` 형태의 JSON을 읽습니다. 별도 `--voice`가 있으면 영상에 이미 섞인 소리 대신 그 트랙을 사용합니다. 기존 자막이 구워진 영상은 `--mask 19`처럼 아래쪽을 가릴 비율을 지정하세요.
 - **내보내기**는 화면에서 SRT, CLI에서 SRT 또는 새 MP4를 지원합니다. MP4 자막은 FFmpeg/libass로 합성하며 `--font "Noto Sans CJK KR"`처럼 설치된 글꼴을 지정할 수 있습니다. 미리보기와 내보내기는 줄바꿈·글꼴이 다를 수 있습니다.
-- **HTML**은 등록 문서와 `--asset`으로 허용한 파일만 샌드박스에서 엽니다. 외부 네트워크와 폼 제출을 막습니다. API 또는 모듈 로더에 의존하는 앱은 프로젝트 개발 서버를 사용하세요. **이미지**에는 메모를 남길 수 있습니다.
+- **HTML**은 등록 문서와 `--asset`으로 허용한 파일만 샌드박스에서 엽니다. 외부 네트워크와 폼 제출을 막습니다. API 또는 모듈 로더에 의존하는 앱은 프로젝트 개발 서버를 사용하세요. **이미지**에는 지점·영역을 지정해 수정 요청을 남길 수 있습니다.
 - 영상·자막 원본을 수정했다면 새 ID로 등록합니다. 이전 프레임 메모와 자막 편집이 다른 영상에 적용되지 않도록 원본 해시를 검사합니다.
+
+## 이미지의 특정 부분 수정
+
+이미지를 열고 **드래그로 영역 지정** 또는 **클릭으로 지점 표시** → 댓글 입력 → **수정 요청 추가** → **편집안 저장** 순서로 사용합니다. 수정 요청 탭에 선택 표시가 들어간 썸네일과 댓글이 함께 나오며, 누르면 그 위치로 돌아갑니다. 원본 좌표를 저장하므로 화면 크기를 바꿔도 같은 영역을 가리킵니다. 영역을 바꾸면 이전 완료 상태가 대기로 돌아갑니다.
+
+클릭은 지점을 표시하는 기능입니다. 객체의 윤곽을 자동으로 인식하는 선택은 아직 포함하지 않습니다. 드래그 영역은 사각형이므로 그 안의 배경도 수정 범위에 들어갑니다.
+
+에이전트는 `image prepare ID NOTE_ID --out edits/request-1`로 원본·선택 영역·마스크를 준비하고, 사용 중인 클라이언트의 이미지 도구로 후보를 만든 뒤 `image apply ID NOTE_ID --request-version HASH --edited edits/candidate.png --out edits/result.png`로 반영합니다. Pillow가 필요한 이 단계는 **선택한 사각형 밖의 원본 픽셀을 보존**합니다. 후보 이미지와 결과를 확인한 뒤 새 이미지 ID로 등록하고 요청에 연결합니다. 이미지 생성 모델은 이 패키지에 포함하지 않으며, 영상의 rev 보관 기능을 이미지·HTML까지 확장하는 것은 후속 작업입니다.
 
 ## 사용자의 수정 요청
 
@@ -122,8 +132,8 @@ python3 artifact.py handoff add --from claude --to codex --reply-to HANDOFF_ID \
 From this repository:
 
 ```bash
-python3 skills/codex-artifacts/scripts/artifact.py add html station-07 examples/sample.html --title "Station 07"
-python3 skills/codex-artifacts/scripts/artifact.py serve --port 0
+python3 skills/codex-studio/scripts/artifact.py add html station-07 examples/sample.html --title "Station 07"
+python3 skills/codex-studio/scripts/artifact.py serve --port 0
 ```
 
 Use `artifact.py status` to find the running URL for this checkout. Stop the server with Ctrl+C. Run `python3 -m unittest discover -s tests -v` for the tests. Export tests require FFmpeg and ffprobe. MIT licensed.

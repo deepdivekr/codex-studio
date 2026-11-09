@@ -4,19 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="artifact-token" content="__APP_TOKEN__">
-  <title>/codex-아티펙트</title>
+  <title>Codex Studio</title>
   <link rel="stylesheet" href="./style.css">
   <script src="./requests.js" defer></script>
   <script src="./versions.js" defer></script>
+  <script src="./images.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
 <header class="header">
-  <div><div class="eyebrow">LOCAL WORKSPACE <span id="project"></span></div><h1>/codex-아티펙트</h1></div>
+  <div><div class="eyebrow">LOCAL WORKSPACE <span id="project"></span></div><h1>Codex Studio</h1></div>
   <span class="quiet">작업물을 확인하고 수정할 내용을 남겨주세요</span>
 </header>
 <nav aria-label="작업 화면">
-  <button id="review-tab" aria-pressed="true">아티펙트</button>
+  <button id="review-tab" aria-pressed="true">작업물</button>
   <button id="requests-tab" aria-pressed="false">수정 요청 <span id="request-count"></span></button>
   <button id="versions-tab" aria-pressed="false">버전</button>
 </nav>
@@ -28,15 +29,24 @@
 </section>
 <noscript>편집실을 사용하려면 JavaScript가 허용된 브라우저에서 로컬 편집 주소를 여세요.</noscript>
 <main>
-  <section id="review-page" aria-label="아티펙트">
+  <section id="review-page" aria-label="작업물">
     <div class="row spread">
-      <label>아티펙트 <select id="artifacts" aria-label="아티펙트 선택"></select></label>
+      <label>작업물 <select id="artifacts" aria-label="작업물 선택"></select></label>
       <div class="row"><a id="srt" class="button" hidden>자막 SRT</a><button id="save" class="primary" disabled>편집안 저장</button></div>
     </div>
-    <p id="empty" class="quiet" hidden>등록된 아티펙트가 없습니다. 대화에서 “이 영상 편집할 아티펙트 열어줘”처럼 요청하세요.</p>
+    <p id="empty" class="quiet" hidden>등록된 작업물가 없습니다. 대화에서 “이 영상 편집할 작업물 열어줘”처럼 요청하세요.</p>
     <div id="workspace" class="split" hidden>
       <div class="stack">
         <div id="screen"></div>
+        <section id="image-tools" class="stack" aria-label="이미지 수정 영역" hidden>
+          <div class="row">
+            <button id="image-rect" type="button" aria-pressed="true">드래그로 영역 지정</button>
+            <button id="image-point" type="button" aria-pressed="false">클릭으로 지점 표시</button>
+            <button id="image-clear" type="button">선택 해제</button>
+          </div>
+          <p class="quiet">바꿀 부분을 지정하고 수정 요청을 적어주세요. 지점 표시는 객체의 윤곽을 자동으로 선택하지 않습니다.</p>
+          <p id="image-selection" class="quiet" role="status">이미지 전체에 대한 요청</p>
+        </section>
         <div id="transport" class="stack" hidden>
           <label for="scrub" class="quiet">재생 위치</label><input type="range" id="scrub" min="0" step="any" value="0">
           <div class="row"><button id="play">재생</button><button id="back" aria-label="이전 프레임">−1프레임</button><button id="next" aria-label="다음 프레임">+1프레임</button><output id="time">00:00:00:00</output></div>
@@ -67,7 +77,7 @@
         </div>
         <div class="stack">
           <h2 id="note-title">수정 요청</h2><label for="note" class="visually-hidden">수정 요청 내용</label>
-          <textarea id="note" maxlength="2000" placeholder="이 장면에서 바꾸고 싶은 내용을 적어주세요"></textarea>
+          <textarea id="note" maxlength="2000" placeholder="어떤 부분을 어떻게 바꿀지 적어주세요"></textarea>
           <button id="add-note">수정 요청 추가</button>
           <p class="quiet">편집안을 저장하면 수정 요청 탭에 모입니다.</p>
           <ul id="notes" class="notes"></ul>
@@ -77,7 +87,7 @@
   </section>
   <section id="requests-page" aria-label="수정 요청" class="stack" hidden>
     <div class="row spread"><h2>저장한 수정 요청</h2><p id="request-sync" class="quiet" role="status">자동으로 업데이트됩니다</p></div>
-    <p class="quiet">프레임을 누르면 해당 장면으로 이동합니다. 사용 중인 대화에서 “저장한 수정 요청 반영해줘”라고 요청하면 처리 결과가 여기에 기록됩니다.</p>
+    <p class="quiet">썸네일을 누르면 해당 장면이나 영역으로 이동합니다. 사용 중인 대화에서 “저장한 수정 요청 반영해줘”라고 요청하면 처리 결과가 여기에 기록됩니다.</p>
     <p id="request-unsaved" class="notice" hidden>아직 저장하지 않은 변경이 있습니다. 아래에는 마지막으로 저장한 요청이 표시됩니다.</p>
     <div class="row request-filters">
       <label>작업물 <select id="request-artifact" aria-label="수정 요청 작업물"></select></label>
@@ -88,7 +98,7 @@
   </section>
 <section id="versions-page" aria-label="버전" class="stack" hidden>
   <div class="row spread"><h2>저장한 버전</h2><label>영상 <select id="versions-artifact" aria-label="버전 영상 선택"></select></label></div>
-  <p class="quiet">편집안을 저장할 때마다 rev가 만들어집니다. 반영이 끝난 버전은 당시의 영상과 완료 메모가 그대로 보관됩니다.</p>
+  <p class="quiet">영상 편집안을 저장할 때마다 rev가 만들어집니다. 반영이 끝난 버전은 당시의 영상과 완료 메모가 그대로 보관됩니다.</p>
   <p id="versions-empty" class="quiet">아직 저장한 버전이 없습니다. 편집안을 저장하면 rev1부터 기록됩니다.</p>
   <div class="version-layout">
     <div id="version-list" class="stack" aria-label="버전 목록"></div>
