@@ -108,7 +108,9 @@ def install(project, agent, upgrade):
                 raise Conflict('Codex and Claude instruction files point to the same file')
             instructions[doc] = update
     files = [SKILL / 'SKILL.md', SKILL / 'LICENSE', *SKILL.glob('agents/*.yaml'), *SKILL.glob('references/*.md'),
-             *SKILL.glob('scripts/*.py'), *SKILL.glob('assets/*')]
+             *SKILL.glob('scripts/*.py'), *SKILL.glob('assets/*'),
+             *(p for p in SKILL.glob('assets/partial-render/**/*')
+               if '__pycache__' not in p.parts and p.suffix != '.pyc')]
     for target in paths:
         if target.resolve() == SKILL:
             continue

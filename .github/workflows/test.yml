@@ -29,6 +29,8 @@ jobs:
       - run: node --check skills/codex-studio/assets/images.js
       - run: node --check skills/codex-studio/assets/requests.js
       - run: node --check skills/codex-studio/assets/versions.js
+      - run: node tests/partial-render.test.mjs
+      - run: node --check skills/codex-studio/assets/partial-render/public/partial-versions.mjs
       - name: Check Bash installer syntax
         if: runner.os == 'Linux'
         run: bash -n install.sh

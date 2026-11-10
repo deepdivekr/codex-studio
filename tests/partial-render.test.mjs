@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {normalize,changedRanges,overlayParts} from '../skills/codex-studio/assets/partial-render/public/render-plan.mjs';
+const l=JSON.parse(readFileSync(new URL('../skills/codex-studio/assets/partial-render/public/render-layout.json',import.meta.url))),empty={frames:{},tele:{}};
+const moved=normalize({frames:{'clip-1':{dx:50,updated:42}},tele:{}},l);
+const ranges=changedRanges(empty,moved,l);assert.equal(ranges.length,1);assert(ranges[0].end-ranges[0].start<120);
+assert.deepEqual(changedRanges(moved,moved,l),[]);assert.deepEqual(changedRanges(moved,empty,l),ranges);
+const reset=overlayParts([{start:0,end:100,offset:0,url:'base'}],[{start:20,end:40,offset:0,url:'A'}]);
+assert.deepEqual(reset,[{start:0,end:20,offset:0,url:'base'},{start:20,end:40,offset:0,url:'A'},{start:40,end:100,offset:40,url:'base'}]);
+const over=overlayParts(reset,[{start:30,end:60,offset:0,url:'B'}]);assert.deepEqual(over.map(x=>[x.start,x.end,x.offset]),[[0,20,0],[20,30,0],[30,60,0],[60,100,60]]);
+assert.throws(()=>normalize({frames:{'clip-1':{scale:99}}},l));
+const text=normalize({tele:{[l.tele[0].beat]:{text:'검증 문구'}}},l);assert(changedRanges(empty,text,l)[0].end<300);
+console.log('PASS: minimal ranges, resets, unchanged reuse, overlapping patch offsets, validation');

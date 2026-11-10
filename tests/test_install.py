@@ -50,6 +50,9 @@ class OneLineInstall(unittest.TestCase):
             self.assertFalse((skill / 'scripts/toolkit.py').exists())
             self.assertTrue((skill / 'references/mobile-sites.md').is_file())
             self.assertTrue((skill / 'references/image-edits.md').is_file())
+            self.assertTrue((skill / 'references/partial-rendering.md').is_file())
+            self.assertTrue((skill / 'assets/partial-render/worker.py').is_file())
+            self.assertTrue((skill / 'assets/partial-render/app/api/renders/[[...parts]]/route.ts').is_file())
             result = subprocess.check_output([sys.executable, str(skill / 'scripts/artifact.py'), 'list'],
                                               cwd=self.project, encoding='utf-8')
             self.assertEqual(json.loads(result), [])

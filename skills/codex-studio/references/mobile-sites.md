@@ -49,3 +49,7 @@ A locally passing editor is not evidence that its hosted media can seek. On the 
 For any added move/resize control, use the real source layer and a clean background. Dragging only a border is not a visual edit preview. Verify the content follows during the drag, the old location is cleared, numeric input agrees, and save/reload/playback preserves the transform. If no layer data exists, omit that capability or state the actual limitation before presenting the editor.
 
 Use an isolated QA artifact/record and clean up only that test data. Exercise create/edit/save/reload/complete/reopen/delete, focused-text preservation during polling, two-client conflicts, and failed-save retry. Include image/HTML/version/audio paths when offered. Preserve unsent comment text on navigation and use distinct labels for sliders and buttons. Report failures and untested environments; viewport emulation does not verify physical touch or another AI client's automatic skill selection.
+
+## Partial render requests
+
+When the user asks to render changed intervals or reduce full renders, continue with [partial rendering](partial-rendering.md). The bundled template provides a Sites queue, revision manifest, UI and local worker; the project renderer needs an adapter and end-to-end verification. Preserve existing whole-video archives.

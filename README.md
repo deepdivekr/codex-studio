@@ -71,4 +71,14 @@ irm https://raw.githubusercontent.com/deepdivekr/codex-studio/refs/heads/main/in
 
 기존 설치자는 위 설치 명령을 다시 실행하고 해당 프로젝트에서 새 대화를 시작하면 변경된 연결 지침이 적용됩니다. [Sites 연결·클라우드 저장·로컬 반영 상세 지침](skills/codex-studio/references/mobile-sites.md)
 
+## 부분 렌더와 버전관리
+
+“수정한 구간만 렌더하고 버전으로 남겨줘”라고 요청할 수 있습니다. 에이전트가 포함된 Sites용 템플릿을 기존 제작 환경에 연결합니다.
+
+- 바뀐 구간만 렌더하고 나머지는 원본·이전 구간을 재사용합니다.
+- 수정값과 구간별 결과를 버전으로 보관하고, 재생·복원·구간 다운로드를 제공합니다.
+- 렌더 PC가 연결되어 있으면 요청을 처리하고, 꺼져 있으면 대기합니다.
+
+**프로젝트별 렌더러 연결이 필요합니다.** 설치만으로 기본 로컬 편집실에 버튼이 활성화되지는 않습니다. 현재 템플릿은 30fps 고정 타임라인의 영상 상자·표시 자막 수정용이며, 단일 완성 MP4 내보내기는 포함하지 않습니다. [연결 방법과 지원 범위](skills/codex-studio/references/partial-rendering.md)
+
 [상세 사용법·추가 기능·개발 안내](docs/advanced.md) · [MIT License](LICENSE)
